@@ -1,0 +1,1704 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Toplum Simülasyonu</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Instrument+Sans:wdth,wght@75..100,400..700&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Düzen: tek sütunlu imar paftası. Canlı ilçe planı tek cesur öğe; lejant, kasa ve karar defteri sakin kalır. */
+  --paper:#E8ECE6;   /* plan kâğıdı, hafif yeşilimsi gri */
+  --sheet:#F7F9F5;   /* pafta yüzeyi */
+  --ink:#16241F;     /* mürekkep */
+  --ink-2:#44544D;
+  --ink-3:#6F7D76;
+  --rule:#C3CDC5;
+  --rule-2:#DAE1DB;
+  --grid:rgba(22,36,31,.055);
+  /* İmar planı lejant renkleri */
+  --konut:#E9A91C;
+  --ticari:#C8372A;
+  --park:#2E8553;
+  --kamu:#2457A6;
+  --sanayi:#6B55A0;
+  --petrol:#2F6E78;
+  --kriz:#EC7A22;     /* kriz kartı turuncusu */
+  --kriz-ink:#2A1203;
+  --olay:#2457A6;     /* olay kartı mavisi */
+  --display:'Bricolage Grotesque','Arial Narrow',system-ui,sans-serif;
+  --body:'Instrument Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --r:6px;
+  color-scheme:light;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--paper)}
+body{
+  min-height:100%;font-family:var(--body);font-size:15px;line-height:1.5;color:var(--ink);
+  background-color:var(--paper);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:24px 24px;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;
+}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input{font:inherit;color:inherit}
+:focus-visible{outline:2.5px solid var(--kamu);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+
+/* ── Ekranlar ───────────────────────────── */
+.screen{display:none;max-width:500px;margin:0 auto;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:18px 40px}
+.screen.active{display:block}
+
+.modes{display:grid;gap:12px;margin-top:20px}
+.mode{display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;padding:18px;background:var(--sheet);border:1.5px solid var(--ink);border-radius:var(--r);transition:background-color .15s,transform .12s}
+.mode:hover{background:#fff}
+.mode:active{transform:translateY(1px)}
+.mode svg{width:40px;height:40px;margin-bottom:6px}
+.mode b{font-family:var(--display);font-weight:800;font-stretch:82%;font-size:30px;line-height:1}
+.mode span{color:var(--ink-2);font-size:15px}
+#mode-create svg{color:var(--kamu)}
+#mode-join svg{color:var(--park)}
+.conn{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-3);white-space:nowrap}
+.conn i{width:8px;height:8px;border-radius:50%;background:var(--konut)}
+.conn.ok i{background:var(--park)}
+.conn.bad i{background:var(--ticari)}
+body.is-demo .conn{display:none}
+.side{display:flex;flex-direction:column;gap:14px}
+
+/* ── Ayarlar, sayaç, roller, canlı harita ── */
+.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:999px;border:1.5px solid var(--ink);background:var(--sheet)}
+.icon-btn svg{width:18px;height:18px}
+.fab-settings{position:fixed;z-index:60;top:calc(12px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));display:none}
+body.in-room .fab-settings{display:inline-flex}
+body.in-room #s-game.active~.fab-settings,body.on-game .fab-settings{display:none}
+.settings-modal{border-top-color:var(--ink)!important}
+body.in-room .screen.narrow{padding-top:62px}
+.set-title{font-family:var(--display);font-weight:800;font-stretch:84%;font-size:30px;line-height:1}
+.set-room{display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center;margin-top:14px;padding:14px;border:1.5px solid var(--ink);border-radius:var(--r);background:#fff}
+.set-room .code{font-family:var(--display);font-weight:800;font-size:34px;letter-spacing:.14em;line-height:1}
+.set-room .small{grid-column:1/-1}
+.set-list{margin-top:14px;border-top:1px solid var(--rule-2)}
+.set-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0;border-bottom:1px solid var(--rule-2)}
+.set-row b{display:block;font-weight:700}
+.set-row span{display:block;font-size:13px;color:var(--ink-3)}
+.switch{position:relative;width:46px;height:28px;border-radius:999px;background:var(--rule);flex-shrink:0;transition:background-color .15s}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .18s}
+.switch[aria-checked="true"]{background:var(--park)}
+.switch[aria-checked="true"]::after{transform:translateX(18px)}
+input[type=range]{accent-color:var(--ink);width:140px}
+.btn-danger{background:transparent;border:1.5px solid var(--ticari);color:var(--ticari)}
+.btn-danger.armed{background:var(--ticari);color:#fff}
+.lbl-row{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.count-seg{display:grid;grid-template-columns:repeat(5,1fr);border:1.5px solid var(--ink);border-radius:var(--r);overflow:hidden}
+.count-seg button{padding:12px 0;font-family:var(--display);font-weight:800;font-size:22px;border-right:1px solid var(--rule)}
+.count-seg button:last-child{border-right:0}
+.count-seg button.active{background:var(--ink);color:var(--sheet)}
+.role-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.role-t{display:grid;grid-template-columns:34px 1fr 18px;gap:10px;align-items:center;text-align:left;padding:10px;border:1.5px solid var(--ink);border-radius:var(--r);background:#fff;transition:opacity .15s,background-color .15s}
+.role-t .ic{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff}
+.role-t .ic svg{width:18px;height:18px}
+.role-t b{display:block;font-size:14px;line-height:1.2}
+.role-t small{display:block;font-size:12px;color:var(--ink-3)}
+.role-t .ck{width:18px;height:18px;border-radius:4px;border:1.5px solid var(--ink);display:flex;align-items:center;justify-content:center}
+.role-t[aria-pressed="true"] .ck{background:var(--ink)}
+.role-t[aria-pressed="true"] .ck::after{content:"";width:8px;height:4px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) translate(1px,-1px)}
+.role-t[aria-pressed="false"]{background:transparent;border-style:dashed;border-color:var(--rule);opacity:.6}
+.role-t[aria-pressed="false"] .ic{filter:grayscale(1)}
+.plan-ov{position:absolute;left:0;top:0;width:100%;pointer-events:none}
+.ticker{position:absolute;left:10px;top:10px;right:10px;z-index:2;display:flex;gap:10px;align-items:center;max-width:max-content;
+  padding:8px 12px 8px 8px;background:var(--ink);color:var(--sheet);border-radius:var(--r);font-size:13px;line-height:1.3;
+  transform:translateY(-140%);opacity:0;transition:transform .35s cubic-bezier(.2,1.3,.4,1),opacity .25s}
+.ticker.show{transform:none;opacity:1}
+.ticker .tag{border:0;font-size:11px;padding:3px 7px;border-radius:3px;flex-shrink:0;color:var(--kriz-ink);background:var(--kriz)}
+.ticker .tag.ev{background:#9EC1FF;color:#0D2550}
+.ticker b{color:#fff}
+#btn-draw{position:relative;overflow:hidden}
+#btn-draw:not(:disabled)::after{content:"";position:absolute;top:0;bottom:0;width:40%;left:-60%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);animation:sheen 3.2s ease-in-out infinite}
+@keyframes sheen{0%,55%{left:-60%}100%{left:130%}}
+.lg.bump{animation:bump .7s ease}
+@keyframes bump{30%{background:rgba(233,169,28,.18)}}
+
+/* ── Tipografi ──────────────────────────── */
+.display{font-family:var(--display);font-weight:800;font-stretch:78%;letter-spacing:-.02em;line-height:.92;text-wrap:balance}
+h2.h{font-family:var(--display);font-weight:750;font-stretch:85%;font-size:30px;line-height:1.02;letter-spacing:-.01em;text-wrap:balance}
+.lede{font-size:16px;color:var(--ink-2);max-width:38ch}
+.small{font-size:13px;color:var(--ink-3)}
+.lbl{font-size:13px;font-weight:600;color:var(--ink-3)}
+
+/* ── Düğmeler ───────────────────────────── */
+.btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:52px;padding:12px 18px;border-radius:var(--r);
+  font-family:var(--display);font-weight:700;font-stretch:88%;font-size:18px;letter-spacing:-.005em;transition:transform .12s,background-color .15s}
+.btn:active{transform:translateY(1px)}
+.btn-ink{background:var(--ink);color:var(--sheet)}
+.btn-ink:hover{background:#22352E}
+.btn-konut{background:var(--konut);color:var(--ink);box-shadow:inset 0 -3px 0 rgba(0,0,0,.14)}
+.btn-konut:hover{background:#F2B532}
+.btn-line{border:1.5px solid var(--ink);color:var(--ink)}
+.btn-line:hover{background:rgba(22,36,31,.05)}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.link{font-weight:600;color:var(--kamu);text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1.5px;padding:6px 0}
+.back{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:14px;color:var(--ink-2);padding:8px 0}
+.back svg{width:18px;height:18px}
+
+/* ── Pafta (panel) ──────────────────────── */
+.sheet{background:var(--sheet);border:1px solid var(--rule);border-radius:var(--r)}
+.sheet-h{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:12px 14px;border-bottom:1px solid var(--rule-2)}
+.sheet-h h3{font-family:var(--display);font-weight:700;font-stretch:88%;font-size:17px}
+
+/* ── Plan tuvali + antet ────────────────── */
+.plan{position:relative;border:1.5px solid var(--ink);border-radius:var(--r);overflow:hidden;background:var(--sheet)}
+.plan canvas{display:block;width:100%}
+.antet{position:absolute;right:0;bottom:0;background:var(--sheet);border-top:1.5px solid var(--ink);border-left:1.5px solid var(--ink);
+  display:grid;grid-template-columns:auto auto;font-size:11px;line-height:1.25}
+.antet>div{padding:5px 9px;border-right:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.antet>div:nth-child(2n){border-right:0}
+.antet>div:nth-last-child(-n+2){border-bottom:0}
+.antet .k{color:var(--ink-3)}
+.antet .v{font-weight:700;font-variant-numeric:tabular-nums}
+
+/* ── Giriş ──────────────────────────────── */
+#s-name .plan{margin-top:6px}
+.title{font-size:clamp(56px,17vw,92px);margin-top:22px}
+#s-name .lede{margin-top:14px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:14px;font-weight:600;color:var(--ink-2)}
+.input{width:100%;min-height:52px;padding:12px 14px;border:1.5px solid var(--ink);border-radius:var(--r);background:var(--sheet);font-size:18px;font-weight:600}
+.input::placeholder{color:var(--ink-3);font-weight:500}
+.input:focus{outline:none;box-shadow:0 0 0 3px rgba(36,87,166,.25);border-color:var(--kamu)}
+.name-form{display:flex;flex-direction:column;gap:12px;margin-top:26px}
+.demo-entry{margin-top:16px;display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+.demo-note{font-size:13px;color:var(--ink-3)}
+
+/* ── Şehir seçimi ───────────────────────── */
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+.city-list{display:flex;flex-direction:column;gap:16px;margin-top:18px}
+.city{background:var(--sheet);border:1.5px solid var(--rule);border-radius:var(--r);overflow:hidden;transition:border-color .15s,box-shadow .15s}
+.city.selected{border-color:var(--ink);box-shadow:0 0 0 3px var(--konut)}
+.city .plan{border:0;border-bottom:1.5px solid var(--rule);border-radius:0}
+.city.selected .plan{border-bottom-color:var(--ink)}
+.city-body{padding:14px 14px 16px;display:flex;flex-direction:column;gap:12px}
+.city-top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+.city-name{font-size:40px}
+.diff{display:flex;flex-direction:column;align-items:flex-end;gap:4px;font-size:13px;font-weight:600;color:var(--ink-2)}
+.diff-bar{display:flex;gap:3px}
+.diff-bar i{width:14px;height:8px;border:1.5px solid var(--ink);border-radius:1px}
+.diff-bar i.on{background:var(--ink)}
+.city-desc{font-size:15px;color:var(--ink-2);line-height:1.55}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);border:1px solid var(--rule-2);border-radius:4px}
+.stat{padding:7px 4px;text-align:center;border-right:1px solid var(--rule-2);min-width:0}
+.stat:last-child{border-right:0}
+.stat .v{font-family:var(--display);font-weight:700;font-size:20px;font-variant-numeric:tabular-nums}
+.stat .k{font-size:11px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.money-line{display:flex;gap:4px 16px;flex-wrap:wrap;font-size:14px;color:var(--ink-2)}
+.money-line b{color:var(--ink);font-variant-numeric:tabular-nums}
+.city .btn{min-height:46px;font-size:16px}
+.city.selected .btn{background:var(--konut);color:var(--ink);border-color:var(--ink)}
+.sticky-go{position:sticky;bottom:0;padding:12px 0 calc(12px + env(safe-area-inset-bottom,0px));margin-top:16px;
+  background:linear-gradient(to top,var(--paper) 70%,rgba(232,236,230,0))}
+
+/* ── Lobi ───────────────────────────────── */
+.city-chip{display:inline-flex;align-items:center;gap:8px;padding:6px 10px 6px 6px;border:1.5px solid var(--ink);border-radius:999px;background:var(--sheet);font-weight:700;font-size:14px}
+.city-chip i{width:18px;height:18px;border-radius:50%;display:block}
+.city-chip span{font-weight:500;color:var(--ink-3)}
+.tabs{display:grid;grid-template-columns:1fr 1fr;border:1.5px solid var(--ink);border-radius:var(--r);overflow:hidden;margin-top:20px}
+.tab{padding:12px;font-weight:700;font-size:15px;text-align:center}
+.tab.active{background:var(--ink);color:var(--sheet)}
+.panel{display:none;flex-direction:column;gap:20px;margin-top:20px}
+.panel.active{display:flex}
+.seg-group{display:flex;flex-direction:column;gap:8px}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.opt{background:var(--sheet);border:1.5px solid var(--rule);border-radius:var(--r);padding:12px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:2px}
+.opt b{font-family:var(--display);font-weight:700;font-stretch:88%;font-size:19px}
+.opt span{font-size:13px;color:var(--ink-3)}
+.opt.active{border-color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--ink);background:#FFF}
+.opt.active b::after{content:"";display:inline-block;width:8px;height:8px;margin-left:8px;border-radius:50%;background:var(--konut);vertical-align:middle;box-shadow:0 0 0 1.5px var(--ink)}
+.summary{font-size:14px;color:var(--ink-2);border-left:3px solid var(--konut);padding:4px 0 4px 12px}
+.summary strong{color:var(--ink)}
+.code-input{text-align:center;letter-spacing:.35em;font-family:var(--display);font-weight:700;font-size:30px;text-transform:uppercase;min-height:64px}
+
+/* ── Bekleme ────────────────────────────── */
+.code-cells{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:14px}
+.code-cells span{aspect-ratio:3/4;max-width:100%;display:flex;align-items:center;justify-content:center;background:var(--sheet);border:1.5px solid var(--ink);border-radius:4px;
+  font-family:var(--display);font-weight:800;font-size:clamp(24px,8vw,38px)}
+.wait-meta{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap}
+.plist{margin-top:20px}
+.prow{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--rule-2)}
+.prow:last-child{border-bottom:0}
+.prow .av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:800;font-size:17px;background:var(--ink);color:var(--sheet);flex-shrink:0}
+.prow .av.empty{background:transparent;border:1.5px dashed var(--rule);color:var(--ink-3)}
+.prow .nm{flex:1;min-width:0;font-weight:600}
+.prow .nm small{display:block;font-weight:500;font-size:13px;color:var(--ink-3)}
+.tag{font-size:12px;font-weight:700;padding:3px 8px;border-radius:999px;border:1.5px solid var(--ink);white-space:nowrap}
+.tag.host{background:var(--konut)}
+.start-hint{margin-top:14px;font-size:14px;color:var(--ink-2)}
+.stack{display:flex;flex-direction:column;gap:10px;margin-top:18px}
+
+/* ── Görevlendirme yazısı (rol) ─────────── */
+.letter{position:relative;background:var(--sheet);border:1px solid var(--rule);border-radius:var(--r);padding:20px 18px 24px;margin-top:14px;
+  box-shadow:0 1px 0 var(--rule),0 3px 0 var(--sheet),0 4px 0 var(--rule)}
+.letter-head{display:flex;gap:12px;align-items:center;padding-bottom:14px;border-bottom:2px solid var(--ink)}
+.letter-head svg{width:40px;height:40px;flex-shrink:0}
+.letter-head b{display:block;font-family:var(--display);font-weight:750;font-stretch:85%;font-size:18px;line-height:1.1}
+.letter-head span{font-size:13px;color:var(--ink-3)}
+.letter-meta{display:flex;justify-content:space-between;font-size:13px;color:var(--ink-3);margin-top:10px}
+.letter-to{margin-top:18px;font-size:16px}
+.role-reveal{margin-top:12px;filter:blur(14px);opacity:.35;transition:filter .5s ease,opacity .5s ease;user-select:none}
+.role-reveal.show{filter:none;opacity:1;user-select:auto}
+.role-line{font-size:16px;color:var(--ink-2)}
+.role-big{display:flex;align-items:center;gap:14px;margin:14px 0}
+.role-icon{width:56px;height:56px;border-radius:50%;border:2px solid var(--ink);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.role-icon svg{width:28px;height:28px}
+#role-name{font-size:40px}
+#role-desc{font-size:15px;color:var(--ink-2)}
+.seal-wrap{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:22px}
+.seal{width:132px;height:132px;border-radius:50%;transition:transform .35s cubic-bezier(.3,1.6,.6,1),opacity .4s}
+.seal:hover{transform:rotate(-6deg) scale(1.03)}
+.seal svg{width:100%;height:100%}
+.seal.opened{transform:scale(.6) rotate(-24deg);opacity:0;pointer-events:none}
+.seal-wrap .small{font-weight:600}
+
+/* ── Gizli dosyalar ─────────────────────── */
+.folders{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:22px}
+.m-env{position:relative;padding-top:12px;cursor:pointer;text-align:left;min-width:0}
+.m-env::before{content:"";position:absolute;top:0;left:0;width:48%;height:14px;background:var(--sanayi);border-radius:5px 5px 0 0}
+.m-env-card{background:var(--sanayi);color:#F2EEF9;border-radius:0 var(--r) var(--r) var(--r);aspect-ratio:3/3.6;max-width:100%;padding:10px;display:flex;flex-direction:column;justify-content:space-between;
+  transition:transform .2s,background-color .2s}
+.m-env:hover .m-env-card{transform:translateY(-3px)}
+.m-env-card b{font-family:var(--display);font-weight:800;font-stretch:80%;font-size:26px;line-height:1}
+.m-env-card span{font-size:12px;opacity:.85}
+.m-env.selected .m-env-card{background:var(--ink)}
+.m-env.selected::before{background:var(--ink)}
+.m-env-card.opened b{font-size:15px;line-height:1.15;font-stretch:88%;overflow-wrap:anywhere}
+.dossier{margin-top:18px;border:1.5px solid var(--sanayi);border-radius:var(--r);background:var(--sheet);padding:16px;display:none}
+.dossier.show{display:block}
+.dossier .t{font-family:var(--display);font-weight:750;font-stretch:85%;font-size:26px;color:var(--sanayi);line-height:1.05}
+.dossier .d{margin-top:8px;color:var(--ink-2)}
+.win{margin-top:12px;padding:10px 12px;background:rgba(107,85,160,.09);border-radius:4px}
+.win .lbl{font-size:12px}
+.win div:last-child{font-weight:700}
+
+/* ── Oyun tahtası ───────────────────────── */
+#s-game{padding-top:0}
+.game-hdr{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:10px 0;background:var(--paper);border-bottom:1.5px solid var(--ink);margin-bottom:14px}
+.game-hdr .room{font-size:13px;color:var(--ink-3);white-space:nowrap}
+.game-hdr .room b{color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:.06em}
+.hdr-r{display:flex;gap:6px;align-items:center;min-width:0}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;font-size:13px;font-weight:700;white-space:nowrap;border:1.5px solid var(--ink);background:var(--sheet)}
+.chip svg{width:16px;height:16px}
+.chip.mission{border-color:var(--sanayi);color:var(--sanayi)}
+.role-chip{min-width:0;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:460px){.role-chip #hdr-role{display:none}.role-chip{padding:6px 8px}}
+#hdr-emoji{display:inline-flex}
+.demo-badge{display:none;margin-left:6px;font-size:11px;font-weight:700;padding:2px 6px;border-radius:3px;background:var(--konut);color:var(--ink);vertical-align:1px}
+body.is-demo .demo-badge{display:inline-block}
+
+.board{display:flex;flex-direction:column;gap:14px}
+.antet .score{font-family:var(--display);font-weight:800;font-size:30px;line-height:1;font-variant-numeric:tabular-nums}
+.legend{padding:4px 14px 10px}
+.lg{display:grid;grid-template-columns:26px 1fr minmax(70px,42%) 34px;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--rule-2)}
+.lg:last-child{border-bottom:0}
+.sw{width:26px;height:18px;border:1.5px solid var(--ink);border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;font-family:var(--display)}
+.sw.line{border:0;height:2px;background:repeating-linear-gradient(90deg,var(--ink) 0 7px,transparent 7px 10px)}
+.lg .nm{font-weight:600;font-size:14px;min-width:0}
+.track{height:8px;background:var(--rule-2);border-radius:1px;overflow:hidden;position:relative}
+.track i{display:block;height:100%;transition:width .6s cubic-bezier(.3,1.3,.6,1)}
+.track::after{content:"";position:absolute;left:40%;top:0;bottom:0;width:1.5px;background:var(--ink);opacity:.35}
+.lg .v{font-family:var(--display);font-weight:700;font-size:18px;text-align:right;font-variant-numeric:tabular-nums}
+.lg .v.low{color:var(--ticari)}
+.kasa{display:grid;grid-template-columns:1fr 1fr}
+.kasa>div{padding:12px 14px;min-width:0}
+.kasa>div+div{border-left:1px solid var(--rule-2)}
+.kasa .amt{font-family:var(--display);font-weight:750;font-size:24px;line-height:1.1;font-variant-numeric:tabular-nums;margin-top:2px}
+.kasa .amt.neg{color:var(--ticari)}
+.susp{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:12px 14px}
+.susp .nm{font-weight:600;font-size:14px}
+.ticks{display:grid;grid-template-columns:repeat(20,1fr);gap:2px;height:14px}
+.ticks i{background:var(--rule-2);border-radius:1px}
+.ticks i.on{background:var(--ticari)}
+.susp .v{font-family:var(--display);font-weight:750;font-size:20px;font-variant-numeric:tabular-nums;min-width:30px;text-align:right}
+.pbar{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px}
+.pbar::-webkit-scrollbar{display:none}
+.pchip{display:flex;align-items:center;gap:8px;padding:8px;border:1px solid var(--rule);border-radius:var(--r);background:var(--sheet);min-width:0}
+.pchip.me{border-color:var(--ink);box-shadow:inset 0 0 0 .5px var(--ink)}
+.pchip .ic{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0}
+.pchip .ic svg{width:16px;height:16px}
+.pchip>div:last-child{min-width:0}
+.pchip b{display:block;font-size:14px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pchip small{display:block;font-size:12px;color:var(--ink-3);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.turn{display:flex;flex-direction:column;gap:10px}
+.round-row{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px;color:var(--ink-2)}
+.round-row b{color:var(--ink);font-variant-numeric:tabular-nums}
+.round-pips{display:flex;gap:4px;flex-shrink:0}
+.round-pip{width:14px;height:10px;border:1.5px solid var(--ink);border-radius:1px}
+.round-pip.done{background:var(--ink)}
+#btn-draw{min-height:60px;font-size:20px}
+#btn-draw svg{width:22px;height:22px}
+.feed-list{display:flex;flex-direction:column;max-height:340px;overflow-y:auto}
+.fi{display:grid;grid-template-columns:48px 1fr;gap:10px;padding:11px 14px;border-bottom:1px solid var(--rule-2)}
+.fi:last-child{border-bottom:0}
+.fi .no{font-size:12px;color:var(--ink-3);line-height:1.2;padding-top:2px}
+.fi .no b{display:block;font-family:var(--display);font-size:20px;color:var(--ink);font-variant-numeric:tabular-nums}
+.fi.crisis .no b{color:var(--kriz)}
+.fi.event .no b{color:var(--olay)}
+.fi .tx{font-size:14px;min-width:0}
+.fi .tx q{font-weight:600}
+.feed-empty{padding:16px 14px;font-size:14px;color:var(--ink-3)}
+.fx-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.fx{font-size:12px;font-weight:700;padding:1px 7px;border-radius:3px;white-space:nowrap;font-variant-numeric:tabular-nums;border:1px solid}
+.fx.up{color:#1F6B41;border-color:rgba(46,133,83,.45);background:rgba(46,133,83,.08)}
+.fx.down{color:#A42C21;border-color:rgba(200,55,42,.4);background:rgba(200,55,42,.07)}
+
+/* ── Kart / görev sayfası (alt sayfa) ───── */
+.card-overlay{position:fixed;inset:0;z-index:100;background:rgba(22,36,31,.55);display:flex;align-items:flex-end;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity .25s}
+.card-overlay.open{opacity:1;pointer-events:auto}
+.card-modal,.mission-modal{position:relative;width:100%;max-width:500px;max-height:92vh;overflow-y:auto;background:var(--sheet);border-radius:10px 10px 0 0;
+  border-top:6px solid var(--ink);transform:translateY(100%);transition:transform .38s cubic-bezier(.2,1.2,.4,1);
+  padding:0 max(18px,env(safe-area-inset-left,0px)) calc(22px + env(safe-area-inset-bottom,0px))}
+.card-overlay.open .card-modal,.card-overlay.open .mission-modal{transform:none}
+.card-modal{padding:0;border-top:0}
+.card-head{position:relative;padding:0 max(18px,env(safe-area-inset-left,0px)) 20px}
+.card-modal.crisis .card-head{background:var(--kriz);color:var(--kriz-ink)}
+.card-modal.crisis .card-head::before{content:"";display:block;height:10px;margin:0 calc(-1*max(18px,env(safe-area-inset-left,0px)));
+  background:repeating-linear-gradient(-45deg,var(--kriz-ink) 0 12px,var(--kriz) 12px 24px)}
+.card-modal.event .card-head{background:var(--olay);color:#F3F7FF}
+.card-modal.event .card-head::before{content:"";display:block;height:10px;margin:0 calc(-1*max(18px,env(safe-area-inset-left,0px)));
+  background:repeating-linear-gradient(90deg,#F3F7FF 0 2px,transparent 2px 14px);opacity:.35}
+.card-head .grab{background:currentColor;opacity:.3}
+.card-modal .card-kind span{color:inherit!important;opacity:.85}
+.card-modal .card-desc{color:inherit;opacity:.88}
+.card-body{padding:16px max(18px,env(safe-area-inset-left,0px)) calc(22px + env(safe-area-inset-bottom,0px))}
+.card-body .opts{margin-top:0}
+.card-body .ev-rows{margin-top:0}
+.card-overlay.open .card-modal{animation:cardIn .5s cubic-bezier(.2,1.25,.4,1)}
+@keyframes cardIn{from{transform:translateY(60px) rotateX(28deg) scale(.94);opacity:0}to{transform:none;opacity:1}}
+.card-modal{transform-origin:50% 100%;perspective:900px}
+.mission-modal{border-top-color:var(--sanayi)}
+.grab{width:40px;height:4px;border-radius:2px;background:var(--rule);margin:10px auto 14px}
+.card-kind{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;font-weight:600}
+.card-kind span:last-child{color:var(--ink-3)}
+.card-title{font-family:var(--display);font-weight:800;font-stretch:82%;font-size:34px;line-height:.98;letter-spacing:-.015em;margin-top:8px;text-wrap:balance}
+.card-desc{margin-top:10px;color:var(--ink-2);font-size:15px}
+.opts{display:flex;flex-direction:column;gap:8px;margin-top:18px}
+.c-opt{width:100%;display:grid;grid-template-columns:30px 1fr auto;gap:10px;align-items:start;text-align:left;padding:12px;border:1.5px solid var(--rule);border-radius:var(--r);background:#fff;transition:border-color .12s,box-shadow .12s}
+.c-opt:hover{border-color:var(--ink-2)}
+.c-opt.selected{border-color:var(--kriz-ink);box-shadow:inset 0 0 0 1.5px var(--kriz-ink),0 0 0 4px rgba(236,122,34,.28)}
+.c-opt .lt{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--ink);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:800}
+.c-opt.selected .lt{background:var(--kriz);color:var(--kriz-ink);border-color:var(--kriz-ink)}
+.c-opt .ol{font-weight:700;font-size:15px;line-height:1.3}
+.c-opt .od{font-size:13px;color:var(--ink-3);margin-top:2px}
+.c-opt .oc{font-family:var(--display);font-weight:700;font-size:15px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.c-opt .oc.neg{color:var(--ticari)}
+.c-opt .oc.pos{color:var(--park)}
+.ev-rows{margin-top:16px;border-top:1px solid var(--rule-2)}
+.ev-row{display:grid;grid-template-columns:86px 1fr auto;gap:10px;padding:10px 0;border-bottom:1px solid var(--rule-2);font-size:14px}
+.ev-row .k{font-weight:700}
+.ev-row .t{color:var(--ink-2)}
+.ev-row .d{font-family:var(--display);font-weight:750;font-size:17px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ev-row .d.up{color:var(--park)}.ev-row .d.down{color:var(--ticari)}
+.budget-fx{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px;padding:12px 14px;border-radius:var(--r);background:rgba(36,87,166,.08)}
+.budget-fx b{font-family:var(--display);font-weight:800;font-size:22px;font-variant-numeric:tabular-nums}
+.budget-fx.neg{background:rgba(200,55,42,.08)}
+.budget-fx.neg b{color:var(--ticari)}
+.card-modal .btn{margin-top:16px}
+.stamp{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%) rotate(-12deg) scale(2.4);opacity:0;pointer-events:none;
+  border:4px solid var(--ticari);color:var(--ticari);border-radius:8px;padding:8px 16px;text-align:center;white-space:nowrap;
+  font-family:var(--display);font-weight:800;font-stretch:80%;font-size:34px;line-height:1;letter-spacing:.03em;background:rgba(247,249,245,.9)}
+.stamp small{display:block;font-size:13px;font-weight:600;letter-spacing:.08em;margin-top:4px}
+.stamp.hit{animation:stamp .45s cubic-bezier(.2,1.5,.4,1) forwards}
+@keyframes stamp{to{opacity:1;transform:translate(-50%,-50%) rotate(-12deg) scale(1)}}
+.mission-modal .t{font-family:var(--display);font-weight:800;font-stretch:84%;font-size:30px;color:var(--sanayi);line-height:1.02;margin-top:6px}
+.mission-modal .d{margin-top:8px;color:var(--ink-2)}
+
+/* ── Dönem sonu raporu ──────────────────── */
+.end-reason{font-size:14px;font-weight:700;color:var(--ticari);margin-top:8px}
+#end-title{font-size:clamp(44px,13vw,64px);margin-top:6px}
+#end-sub{margin-top:10px}
+.end-plan{margin-top:18px}
+.end-table{width:100%;border-collapse:collapse;font-size:14px}
+.end-table th{text-align:left;font-weight:600;color:var(--ink-3);font-size:12px;padding:8px 12px;border-bottom:1px solid var(--rule-2)}
+.end-table td{padding:9px 12px;border-bottom:1px solid var(--rule-2);font-variant-numeric:tabular-nums}
+.end-table tr:last-child td{border-bottom:0}
+.end-table td.n,.end-table th.n{text-align:right}
+.end-table td.n{font-weight:600}
+.end-table td.up{color:var(--park);text-align:right;font-weight:700}
+.end-table td.down{color:var(--ticari);text-align:right;font-weight:700}
+.end-table tr.total td{font-weight:700;background:rgba(233,169,28,.12)}
+.ep{padding:14px;border-bottom:1px solid var(--rule-2);display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center}
+.ep:last-child{border-bottom:0}
+.ep .nm{font-weight:700;font-size:16px}
+.ep .nm small{font-weight:500;color:var(--ink-3);font-size:13px;margin-left:6px}
+.ep .ms{grid-column:1;font-size:14px;color:var(--ink-2)}
+.ep .ms b{color:var(--sanayi)}
+.ep .res{grid-row:1/span 2;grid-column:2;font-family:var(--display);font-weight:800;font-stretch:80%;font-size:15px;letter-spacing:.04em;padding:6px 9px;border:3px solid;border-radius:6px;transform:rotate(-6deg)}
+.ep.win .res{color:var(--park);border-color:var(--park)}
+.ep.lose .res{color:var(--ticari);border-color:var(--ticari)}
+
+/* ── Bildirim ───────────────────────────── */
+.toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translate(-50%,160%);z-index:200;width:max-content;max-width:min(460px,calc(100% - 32px));
+  background:var(--ink);color:var(--sheet);padding:12px 16px;border-radius:var(--r);font-size:14px;font-weight:600;transition:transform .3s cubic-bezier(.2,1.3,.4,1)}
+.toast.show{transform:translate(-50%,0)}
+.toast.error{background:var(--ticari)}
+.toast.success{background:var(--park)}
+
+@media (min-width:560px){
+  .card-overlay{align-items:center}
+  .card-modal,.mission-modal{border-radius:10px;max-width:580px}
+  .modes{grid-template-columns:1fr 1fr}
+}
+/* ── Masaüstü: geniş pafta ─────────────── */
+@media (min-width:960px){
+  body{font-size:16px}
+  .role-grid{grid-template-columns:repeat(3,1fr)}
+  .screen{padding-block:32px 56px}
+  .screen.narrow{max-width:640px}
+  .screen.wide{max-width:1240px}
+  #s-name{max-width:1240px}
+  .hero{display:grid;grid-template-columns:1.25fr 1fr;gap:48px;align-items:center;min-height:calc(100vh - 120px)}
+  .hero .plan{margin-top:0}
+  .hero-text .title{margin-top:0}
+  .city-list{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;align-items:start}
+  .city-name{font-size:36px}
+  .sticky-go{max-width:420px;margin-left:auto;background:none}
+  #s-game .board{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(340px,1fr);gap:20px;align-items:start}
+  #s-game .board>.plan{grid-column:1;grid-row:1}
+  #s-game .board>.feed{grid-column:1;grid-row:2}
+  #s-game .side{grid-column:2;grid-row:1/span 2;position:sticky;top:76px}
+  #s-game .game-hdr{margin-bottom:20px}
+  .feed-list{max-height:none}
+  .end-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:32px;align-items:start}
+  .end-r>.sheet:first-child{margin-top:0!important}
+  .modes .mode{padding:24px}
+}
+@media (prefers-reduced-motion:reduce){*{transition-duration:.01ms!important;animation-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- GİRİŞ -->
+<main class="screen active" id="s-name">
+  <div class="hero">
+  <div class="plan">
+    <canvas id="hero-plan" aria-label="Karadut ilçesinin imar planı"></canvas>
+    <div class="antet"><div class="k">Pafta</div><div class="v">K-01</div><div class="k">Ölçek</div><div class="v">1:5000</div></div>
+  </div>
+  <div class="hero-text">
+  <h1 class="display title">Toplum<br>Simülasyonu</h1>
+  <p class="lede">İki ya da üç kişi aynı ilçeyi birlikte yönetir. Bütçe kısıtlı, krizler gerçek zamanlı ve herkesin kimseye söylemediği bir hedefi var.</p>
+  <div class="name-form">
+    <div class="field">
+      <label for="input-name">Adın</label>
+      <input class="input" type="text" id="input-name" placeholder="Masada görünecek ad" maxlength="20" autocomplete="off">
+    </div>
+    <button class="btn btn-ink" id="btn-next-city" type="button">Devam et</button>
+  </div>
+  <div class="demo-entry" id="demo-entry">
+    <button class="link" id="btn-demo" type="button">Tek başına dene: botlarla demo oyun</button>
+    <p class="demo-note" id="demo-note">İki bot oyuncu odana katılır, internet bağlantısı gerekmez.</p>
+  </div>
+  </div>
+  </div>
+</main>
+
+<!-- MOD SEÇİMİ -->
+<main class="screen narrow" id="s-mode">
+  <div class="topbar">
+    <button class="back" type="button" onclick="goTo('s-name')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>Adını değiştir</button>
+  </div>
+  <h2 class="h">Merhaba <span id="mode-name"></span>, nasıl başlıyorsun?</h2>
+  <div class="modes">
+    <button class="mode" id="mode-create" type="button" onclick="chooseMode('create')">
+      <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="5" y="5" width="38" height="38" rx="2"/><path d="M5 19h38M19 19v24M31 27v8m-4-4h8"/></svg>
+      <b>Yeni oda kur</b>
+      <span>İlçeyi ve oyun ayarlarını sen seçersin. Arkadaşlarına 6 haneli bir kod gönderirsin.</span>
+    </button>
+    <button class="mode" id="mode-join" type="button" onclick="chooseMode('join')">
+      <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="5" y="5" width="38" height="38" rx="2"/><path d="M14 24h17m-6-6 6 6-6 6M36 12v24"/></svg>
+      <b>Bir odaya katıl</b>
+      <span>Arkadaşının kurduğu odanın kodunu girersin. İlçe ve ayarlar odayı kuran kişiye ait.</span>
+    </button>
+  </div>
+</main>
+
+<!-- ŞEHİR -->
+<main class="screen wide" id="s-city">
+  <div class="topbar">
+    <button class="back" type="button" onclick="goTo('s-mode')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>Geri</button>
+  </div>
+  <h2 class="h">Hangi ilçeyi yöneteceksiniz?</h2>
+  <p class="small" style="margin-top:6px">Değerler ilçenin başlangıç durumu. 40'ın altı kritik sayılır.</p>
+  <div class="city-list" id="city-list"></div>
+  <div class="sticky-go">
+    <button class="btn btn-ink" id="btn-city-next" type="button" disabled onclick="goTo('s-lobby')">Önce bir ilçe seç</button>
+  </div>
+</main>
+
+<!-- LOBİ -->
+<main class="screen narrow" id="s-lobby">
+  <div class="topbar">
+    <button class="back" type="button" onclick="lobbyBack()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg><span id="lobby-back-txt">İlçeyi değiştir</span></button>
+    <div class="city-chip" id="lobby-city-pill"></div>
+  </div>
+  <h2 class="h" style="margin-top:8px" id="lobby-title">Oyun ayarları</h2>
+
+  <div class="panel active" id="panel-create">
+    <div class="seg-group">
+      <div class="lbl-row"><span class="lbl">Oyuncu sayısı</span><span class="small" id="count-note"></span></div>
+      <div class="count-seg" id="count-seg" role="radiogroup" aria-label="Oyuncu sayısı"></div>
+    </div>
+    <div class="seg-group">
+      <div class="lbl-row"><span class="lbl">Oyundaki roller</span><span class="small" id="role-count"></span></div>
+      <div class="role-grid" id="role-grid"></div>
+    </div>
+    <div class="seg-group">
+      <div class="lbl">Yolsuzluk şüphesi</div>
+      <div class="seg">
+        <button type="button" class="opt active" id="pill-cor-on" onclick="setCorruption(true,this)"><b>Açık</b><span>Kirli kararlar şüpheyi artırır</span></button>
+        <button type="button" class="opt" id="pill-cor-off" onclick="setCorruption(false,this)"><b>Kapalı</b><span>Sadece şehir yönetimi</span></button>
+      </div>
+    </div>
+    <div class="summary" id="create-info-box"></div>
+    <button class="btn btn-ink" id="btn-create" type="button">Odayı kur</button>
+  </div>
+
+  <div class="panel" id="panel-join">
+    <div class="field">
+      <label for="input-code">Oda kodu</label>
+      <input class="input code-input" type="text" id="input-code" placeholder="K7X2QP" maxlength="6" autocomplete="off" autocapitalize="characters">
+      <p class="small">Odayı kuran kişinin ekranındaki 6 haneli kod.</p>
+    </div>
+    <button class="btn btn-ink" id="btn-join" type="button">Odaya katıl</button>
+  </div>
+</main>
+
+<!-- BEKLEME -->
+<main class="screen narrow" id="s-wait">
+  <h2 class="h">Oyuncular bekleniyor</h2>
+  <p class="small" style="margin-top:6px">Bu kodu arkadaşlarına gönder. Odaya katıldıklarında listede görünürler.</p>
+  <div class="code-cells num" id="disp-code" aria-label="Oda kodu"></div>
+  <div class="wait-meta">
+    <div class="city-chip" id="wait-badge"></div>
+    <span class="conn"><i></i>Bağlanıyor</span>
+    <button class="link" type="button" id="btn-copy-code">Kodu kopyala</button>
+  </div>
+  <div class="sheet plist" id="plist"></div>
+  <p class="start-hint" id="start-hint">Diğer oyuncuların katılmasını bekle.</p>
+  <div class="stack">
+    <button class="btn btn-konut" id="btn-start" type="button" style="display:none">Oyunu başlat ve rolleri dağıt</button>
+    <button class="btn btn-line" id="btn-cancel-room" type="button" onclick="leaveRoom()">Odadan çık</button>
+  </div>
+</main>
+
+<!-- ROL: GÖREVLENDİRME YAZISI -->
+<main class="screen narrow" id="s-env">
+  <article class="letter">
+    <header class="letter-head">
+      <svg viewBox="0 0 40 40" fill="none" stroke="#16241F" stroke-width="1.8"><circle cx="20" cy="20" r="18"/><path d="M10 29h20M12 29V18m16 11V18M16.5 29v-7m7 7v-7M9 18l11-7 11 7z"/></svg>
+      <div><b id="letter-city">Karadut Belediyesi</b><span>Yazı İşleri Müdürlüğü</span></div>
+    </header>
+    <div class="letter-meta"><span>Konu: Görevlendirme</span><span class="num" id="letter-date"></span></div>
+    <p class="letter-to">Sayın <b id="letter-name">—</b>,</p>
+    <div class="role-reveal" id="role-reveal" aria-live="polite">
+      <p class="role-line">Bu dönem için aşağıdaki görevle ilçe yönetimine atandınız.</p>
+      <div class="role-big">
+        <div class="role-icon" id="role-emoji"></div>
+        <h2 class="display" id="role-name">—</h2>
+      </div>
+      <p id="role-desc">—</p>
+    </div>
+    <div class="seal-wrap" id="seal-wrap">
+      <button class="seal" id="env-svg" type="button" onclick="openRoleEnv()" aria-label="Mührü kır ve görevini oku">
+        <svg viewBox="0 0 140 140">
+          <defs><path id="sealpath" d="M70 70 m-49 0 a49 49 0 1 1 98 0 a49 49 0 1 1 -98 0"/></defs>
+          <circle cx="70" cy="70" r="66" fill="#C8372A"/>
+          <circle cx="70" cy="70" r="60" fill="none" stroke="#F7F9F5" stroke-width="1.5" stroke-dasharray="2 3"/>
+          <circle cx="70" cy="70" r="37" fill="none" stroke="#F7F9F5" stroke-width="1.5"/>
+          <text font-family="Instrument Sans, sans-serif" font-size="11" font-weight="700" letter-spacing="1.6" fill="#F7F9F5"><textPath href="#sealpath" id="seal-text">GİZLİDİR • KİŞİYE ÖZEL • GİZLİDİR • KİŞİYE ÖZEL •</textPath></text>
+          <path d="M54 82h32M57 82V69m26 13V69M63 82v-8m14 8v-8M52 69l18-12 18 12z" fill="none" stroke="#F7F9F5" stroke-width="2.2" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <p class="small" id="tap-hint">Rolünü okumak için mührü kır</p>
+    </div>
+    <button class="btn btn-ink" id="btn-to-mission" type="button" style="display:none;margin-top:18px">Gizli görevini seç</button>
+  </article>
+</main>
+
+<!-- GİZLİ GÖREV -->
+<main class="screen narrow" id="s-mission">
+  <h2 class="h">Gizli görevini seç</h2>
+  <p class="lede" style="margin-top:8px">Üç dosyadan birini aç. İçindeki görevi yalnızca sen göreceksin ve oyun sonunda kazanıp kazanmadığın buna göre belirlenecek.</p>
+  <div class="folders" id="mission-envs"></div>
+  <div class="dossier" id="mission-reveal">
+    <div class="t" id="m-title">—</div>
+    <p class="d" id="m-desc">—</p>
+    <div class="win"><div class="lbl">Kazanma koşulu</div><div id="m-win-txt">—</div></div>
+  </div>
+  <button class="btn btn-ink" id="btn-accept-mission" type="button" style="display:none;margin-top:16px">Bu görevi al</button>
+</main>
+
+<!-- OYUN -->
+<main class="screen wide" id="s-game">
+  <header class="game-hdr">
+    <div class="room">Oda <b id="hdr-code">------</b><span class="demo-badge">Demo</span> <span class="conn"><i></i>Bağlanıyor</span></div>
+    <div class="hdr-r">
+      <button class="chip mission" id="mission-chip" type="button" onclick="showMissionModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Görevim</button>
+      <span class="chip role-chip"><span id="hdr-emoji"></span><span id="hdr-role">—</span></span>
+      <button class="icon-btn" type="button" onclick="openSettings()" aria-label="Ayarlar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+    </div>
+  </header>
+  <div class="board">
+    <div class="plan" id="city-banner">
+      <canvas id="game-plan" aria-label="İlçenin canlı imar planı"></canvas>
+      <div class="ticker" id="ticker" aria-live="polite"></div>
+      <div class="antet">
+        <div class="k" id="city-banner-lbl">Karadut</div><div class="k">Halk konforu</div>
+        <div class="v" id="antet-sheet">K-01</div><div class="v score" id="oc-score">--</div>
+      </div>
+    </div>
+
+    <div class="side">
+    <section class="sheet">
+      <div class="sheet-h"><h3>Lejant</h3><span class="small">Tarama: 40 altı kritik</span></div>
+      <div class="legend" id="oc-bars"></div>
+    </section>
+
+    <section class="sheet kasa" id="budget-row"></section>
+
+    <section class="sheet susp susp-row">
+      <span class="nm">Yolsuzluk şüphesi</span>
+      <div class="ticks" id="susp-b"></div>
+      <span class="v" id="susp-v">0</span>
+    </section>
+
+    <div class="pbar" id="pbar"></div>
+
+    <div class="turn">
+      <div class="round-row"><span id="round-lbl"></span><div class="round-pips" id="round-pips"></div></div>
+      <button class="btn btn-konut" id="btn-draw" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="13" height="17" rx="2"/><path d="M8 21h11a1 1 0 0 0 1-1V7"/></svg>
+        <span id="draw-txt">Gündemden kart çek</span>
+      </button>
+    </div>
+    </div>
+
+    <section class="sheet feed">
+      <div class="sheet-h"><h3>Karar defteri</h3><span class="small num" id="feed-count"></span></div>
+      <div class="feed-list" id="feed-list"><div class="feed-empty">Henüz karar alınmadı. İlk kartı sen çek.</div></div>
+    </section>
+  </div>
+</main>
+
+<!-- DÖNEM SONU -->
+<main class="screen wide" id="s-end">
+  <div class="end-grid"><div class="end-l">
+  <div class="end-reason" id="end-reason">Dönem sona erdi</div>
+  <h2 class="display" id="end-title">—</h2>
+  <p class="lede" id="end-sub"></p>
+  <div class="plan end-plan">
+    <canvas id="end-plan" aria-label="Dönem sonunda ilçenin imar planı"></canvas>
+    <div class="antet"><div class="k">Halk konforu</div><div class="v score num" id="end-score" style="font-size:24px">--</div></div>
+  </div>
+  </div><div class="end-r">
+  <section class="sheet" style="margin-top:14px;overflow-x:auto">
+    <table class="end-table" id="end-metrics"></table>
+  </section>
+  <section class="sheet" style="margin-top:14px" id="end-players"></section>
+  <div class="stack">
+    <button class="btn btn-ink" id="btn-end-again" type="button">Yeni oyun kur</button>
+  </div>
+  </div></div>
+</main>
+
+<!-- KART -->
+<div class="card-overlay" id="card-overlay" onclick="closeCardIfOutside(event)">
+  <div class="card-modal" id="card-modal" role="dialog" aria-modal="true" aria-labelledby="card-title">
+    <div id="card-content"></div>
+    <div class="stamp" id="stamp"><span id="stamp-main">KARAR VERİLDİ</span><small id="stamp-sub"></small></div>
+  </div>
+</div>
+
+<!-- AYARLAR -->
+<div class="card-overlay" id="settings-overlay" onclick="closeSettings(event)">
+  <div class="mission-modal settings-modal" role="dialog" aria-modal="true" aria-labelledby="set-title">
+    <div class="grab"></div>
+    <h3 class="set-title" id="set-title">Ayarlar</h3>
+    <div class="set-room" id="set-room">
+      <div><div class="lbl">Oda kodu</div><div class="code num" id="set-code">------</div></div>
+      <button class="btn btn-line" type="button" id="set-copy" style="min-height:40px;width:auto;font-size:15px">Kopyala</button>
+      <div class="small" id="set-room-info"></div>
+    </div>
+    <div class="set-list">
+      <div class="set-row"><div><b>Ses efektleri</b><span>Kart çekme, mühür ve bildirim sesleri</span></div><button class="switch" type="button" role="switch" id="sw-sfx" aria-label="Ses efektleri"></button></div>
+      <div class="set-row"><div><b>Ses düzeyi</b><span id="vol-txt"></span></div><input type="range" id="set-vol" min="0" max="100" step="5" aria-label="Ses düzeyi"></div>
+      <div class="set-row"><div><b>Müzik</b><span>Arka plan müziği, yakında eklenecek</span></div><button class="switch" type="button" role="switch" id="sw-music" aria-label="Müzik"></button></div>
+      <div class="set-row"><div><b>Canlı harita</b><span>Trafik, alarm halkaları ve uçan değerler</span></div><button class="switch" type="button" role="switch" id="sw-motion" aria-label="Canlı harita"></button></div>
+    </div>
+    <div class="stack">
+      <button class="btn btn-danger" type="button" id="btn-leave">Oyundan çık</button>
+      <button class="btn btn-line" type="button" onclick="closeSettings()">Kapat</button>
+    </div>
+  </div>
+</div>
+<button class="icon-btn fab-settings" id="fab-settings" type="button" onclick="openSettings()" aria-label="Ayarlar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3M4.9 4.9l2.1 2.1m10 10 2.1 2.1M4.9 19.1 7 17m10-10 2.1-2.1"/></svg></button>
+
+<!-- GÖREV (oyun içi) -->
+<div class="card-overlay" id="mission-overlay" onclick="closeMissionOverlay(event)">
+  <div class="mission-modal" role="dialog" aria-modal="true" aria-labelledby="mm-title">
+    <div class="grab"></div>
+    <div class="card-kind"><span style="color:var(--sanayi)">Gizli görevin</span><span>Sadece sen görüyorsun</span></div>
+    <div class="t" id="mm-title">—</div>
+    <p class="d" id="mm-desc">—</p>
+    <div class="win"><div class="lbl">Kazanma koşulu</div><div id="mm-win-txt">—</div></div>
+    <div id="mm-now" class="small" style="margin-top:10px"></div>
+    <button class="btn btn-line" type="button" style="margin-top:16px" onclick="closeMissionOverlay()">Kapat</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.min.js"></script>
+<script>
+const SURL='https://vpgvkfnxkqrygurpqwlz.supabase.co';
+const SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwZ3ZrZm54a3FyeWd1cnBxd2x6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM5ODgwNzUsImV4cCI6MjEwOTU2NDA3NX0.CgztTg1YOdmecIAo5puCicV2QKzuxFwcxHcDQIt0kSM';
+/* Demo derlemesinde (artifact) true yapılır: Supabase yerine tarayıcı içi sahte veritabanı */
+const FORCE_DEMO=false;
+const DEMO_SEED=/*SEED*/{"cards":[{"id":"d272f5da-6a5f-447f-be66-bc8a858945bf","type":"crisis","title":"Fabrika Atık Skandalı","description":"Organize sanayideki bir fabrikanın geceleri dereye kimyasal atık boşalttığı ortaya çıktı. Mahalleli ölü balık fotoğraflarını paylaşıyor.","options":[{"cost":-20000,"desc":"Üretim durur, sanayici zarar eder.","icon":"🔒","label":"Fabrikayı mühürle","effects":{"health":6,"social":2,"businessman_cash":-120000}},{"cost":40000,"desc":"Kasaya para girer, atık sorunu sürer.","icon":"🧾","label":"Ağır para cezası kes","effects":{"health":2}},{"cost":90000,"desc":"Fabrika belediyeye 'bağış' yapar.","icon":"🤫","label":"Bağışı al, sessiz kal","effects":{"health":-6,"suspicion":15,"businessman_cash":-40000}}],"effects":null,"budget_effect":0,"stat_effects":null},{"id":"3972215e-f2e7-4a3a-9e85-a43296068654","type":"crisis","title":"Grip Salgını Uyarısı","description":"Acil servislere başvuru bir haftada iki katına çıktı. İl sağlık müdürlüğü okullarda vaka artışı bildiriyor.","options":[{"cost":-90000,"icon":"💉","label":"Ücretsiz aşı kampanyası","effects":{"health":9,"social":2}},{"cost":-10000,"icon":"🏫","label":"Okulları bir hafta kapat","effects":{"health":4,"education":-5}},{"cost":-40000,"desc":"Hastanenin ortağı iş insanı.","icon":"🏥","label":"Özel hastaneyle protokol yap","effects":{"health":5,"suspicion":8,"businessman_cash":60000}}],"effects":null,"budget_effect":0,"stat_effects":null},{"id":"b877ae4e-c873-4f24-96f4-2f7d37ec8efa","type":"crisis","title":"Hastane Bütçe Krizi","description":"İlçe hastanesinin bütçesi kritik seviyelere geriledi. Personel maaşları gecikmeye başladı, ilaç stokları azaldı. Bakanlık kısa vadede müdahale edemeyeceğini bildirdi.","options":[{"cost":-80000,"icon":"💊","label":"Belediye Fonundan Acil Destek","effects":{"health":8,"social":-2}},{"cost":-10000,"icon":"📢","label":"Bağış Kampanyası Başlat","effects":{"health":3,"social":4}},{"cost":0,"icon":"⏳","label":"Erteleyip İzle","effects":{"health":-5,"social":-3}}],"effects":null,"budget_effect":0,"stat_effects":null},{"id":"ed428725-71c1-4ce9-a0e6-105840670da3","type":"crisis","title":"Hırsızlık Dalgası","description":"Çarşıda bir ayda on iki dükkan soyuldu. Esnaf odası belediye önünde kepenk kapatma eylemi yapıyor.","options":[{"cost":-60000,"icon":"📹","label":"Kamera sistemi kur","effects":{"security":7}},{"cost":-45000,"icon":"🕴️","label":"Özel güvenlik şirketiyle anlaş","effects":{"security":5,"suspicion":10,"businessman_cash":70000}},{"cost":-15000,"icon":"🔦","label":"Bekçi ve mahalle gönüllüleri","effects":{"social":2,"security":3}}],"effects":null,"budget_effect":0,"stat_effects":null},{"id":"24c0153e-450a-415f-917b-68a31adf911a","type":"crisis","title":"Kaçak AVM İnşaatı","description":"Ana caddedeki yeşil alanda ruhsatsız bir alışveriş merkezi yükseliyor. Müteahhit 'her şey yasal olacak' diyor.","options":[{"cost":-30000,"icon":"🚧","label":"İnşaatı yık","effects":{"social":3,"security":2,"businessman_cash":-200000}},{"cost":60000,"desc":"Harç geliri gelir, trafik artar.","icon":"📝","label":"İmar affı çıkar","effects":{"suspicion":15,"transport":-3,"businessman_cash":150000}},{"cost":35000,"icon":"⚖️","label":"Ceza kes, devam etsin","effects":{"social":-2,"suspicion":5}}],"effects":null,"budget_effect":0,"stat_effects":null},{"id":"1c9e9057-b22c-4cd4-b303-58f82b1df2a9","type":"crisis","title":"Köprüde Çökme Riski","description":"Dere üzerindeki 1974 yapımı köprünün ayaklarında çatlak bulundu. Mühendisler acil önlem istiyor.","options":[{"cost":-100000,"icon":"🏗️","label":"Acil onarım yap","effects":{"security":3,"transport":4}},{"cost":-10000,"icon":"⛔","label":"Köprüyü trafiğe kapat","effects":{"security":2,"transport":-8}},{"cost":-30000,"icon":"🩹","label":"Ucuz yama ihalesi aç","effects":{"security":-4,"suspicion":10,"transport":2,"businessman_cash":60000}}],"effects":null,"budget_effect":0,"stat_effects":null},{"id":"b966241a-c2dd-43f2-94d1-3b593b94e6e3","type":"crisis","title":"Kuraklık ve Su Kesintisi","description":"Baraj doluluk oranı yüzde 18'e düştü. Yüksek mahallelere iki gündür su gitmiyor.","options":[{"cost":-110000,"icon":"🛢️","label":"Yeni su deposu yap","effects":{"health":5,"social":4}},{"cost":-10000,"icon":"📣","label":"Tasarruf kampanyası başlat","effects":{"health":1,"social":-2}},{"cost":-50000,"icon":"🚚","label":"Tanker suyunu özel firmaya ver","effects":{"health":3,"suspicion":8,"businessman_cash":90000}}],"effects":null,"budget_effect":0,"stat_effects":null},{"id":"72a9182c-37c4-46bc-8d2f-c76c341150be","type":"crisis","title":"Meydanda Gençlik Protestosu","description":"İşsizliğe tepki gösteren yüzlerce genç belediye meydanında oturma eylemi başlattı.","options":[{"cost":-55000,"icon":"🏟️","label":"Gençlik merkezi sözü ver","effects":{"social":7,"education":2}},{"cost":-5000,"icon":"🚓","label":"Polisle dağıt","effects":{"social":-8,"security":3}},{"cost":-10000,"icon":"🤝","label":"Diyalog masası kur","effects":{"social":3}}],"effects":null,"budget_effect":0,"stat_effects":null},{"id":"40f4d4b4-d2a2-4fe7-b289-1e564a14a58e","type":"crisis","title":"Öğretmen Açığı","description":"Eylül'de dört okulda matematik ve fen öğretmeni yok. Veliler dilekçe topluyor.","options":[{"cost":-45000,"icon":"👩‍🏫","label":"Ücretli öğretmen görevlendir","effects":{"education":6}},{"cost":0,"icon":"🪑","label":"Sınıfları birleştir","effects":{"social":-2,"education":-4}},{"cost":-25000,"icon":"📚","label":"Özel dershaneyle protokol","effects":{"education":3,"suspicion":6,"businessman_cash":50000}}],"effects":null,"budget_effect":0,"stat_effects":null},{"id":"78fb7af7-a531-4277-8d04-3d1da550c0a3","type":"crisis","title":"Okul İnşaatı Durdu","description":"Yeni okul binası inşaatında yüklenici firma nakit sıkıntısına düştü. İnşaat durursa 400 öğrenci etkilenecek. Veli tepkileri sosyal medyaya yansıdı.","options":[{"cost":-50000,"icon":"🏫","label":"Belediye Avansı Ver","effects":{"social":2,"education":6}},{"cost":-15000,"icon":"🔍","label":"Yeni Yüklenici Bul","effects":{"social":-1,"education":3}},{"cost":-25000,"icon":"⚡","label":"Prefabrik Çözüm","effects":{"social":1,"education":4}}],"effects":null,"budget_effect":0,"stat_effects":null},{"id":"6413fae0-acd6-4336-9b48-b7873a837d8c","type":"crisis","title":"Şehirde Ani Doğal Afet","description":"Şiddetli yağışlar sonucu şehirde sel ve su baskınları meydana geldi. Birçok mahalle sular altında kaldı, ulaşım aksadı ve bazı bölgelerde elektrik kesintileri yaşandı. Acil ekipler sahada, ancak durum hâlâ kontrol altına alınamadı.","options":[{"cost":-60000,"icon":"🏠","label":"Acil Yardım ve Tahliye","effects":{"social":5,"security":3}},{"cost":-30000,"icon":"🚌","label":"Ulaşımı Yeniden Sağla","effects":{"transport":4}},{"cost":-20000,"icon":"⚡","label":"Elektrik ve Altyapıyı Güçlendir","effects":{"security":2,"transport":2}}],"effects":null,"budget_effect":0,"stat_effects":null},{"id":"d2b02479-83df-4c0d-bf59-7c6ee55f1e18","type":"crisis","title":"Toplu Taşıma Grevi","description":"Belediye otobüsü şoförleri üç aydır gecikmeli ödenen maaşlar için kontak kapattı. Sabah duraklarda uzun kuyruklar var.","options":[{"cost":-70000,"icon":"💸","label":"Maaş zammı ver","effects":{"social":2,"transport":5}},{"cost":-20000,"desc":"İhaleyi tanıdık bir kooperatif alır.","icon":"🚐","label":"Hatları özel minibüslere ihale et","effects":{"suspicion":10,"transport":2,"businessman_cash":100000}},{"cost":0,"icon":"⏳","label":"Grevin bitmesini bekle","effects":{"social":-4,"transport":-7}}],"effects":null,"budget_effect":0,"stat_effects":null},{"id":"08ef3c8c-1262-4882-a65c-1ec528548c50","type":"event","title":"Bağ Bozumu Festivali","description":"Üç gün süren festivale çevre ilçelerden de ziyaretçi geldi. Organizasyon belediyeye pahalıya patladı.","options":null,"effects":{"social":"Mahalleler arasında kaynaşma arttı.","economy":"Esnaf iyi kazandı ama belediye harcadı."},"budget_effect":-20000,"stat_effects":{"social":5}},{"id":"6c212b13-5b0e-4e18-993a-b2ac39450f00","type":"event","title":"Bakanlık Hibesi","description":"İlçenin dijital eğitim projesi bakanlık hibesi kazandı.","options":null,"effects":{"economy":"Belediye kasasına dış kaynak girdi.","education":"Okullara akıllı tahta ve tablet geliyor."},"budget_effect":120000,"stat_effects":{"education":2}},{"id":"88111b7b-ff73-47e1-92fa-35bba6016b66","type":"event","title":"Basında Yolsuzluk Haberi","description":"Yerel gazete belediye ihaleleriyle ilgili 'Kim kazandı, kim kazandırdı?' başlıklı bir dosya yayımladı.","options":null,"effects":{"social":"Halkın yönetime güveni sarsıldı.","suspicion":"Savcılık ihale dosyalarını istedi."},"budget_effect":0,"stat_effects":{"social":-3,"suspicion":12}},{"id":"d17df25e-b083-4e92-a4c2-fc657529a359","type":"event","title":"Bisiklet Yolu Bağışı","description":"Bir hayırsever sahil boyunca 6 km bisiklet yolu yaptırdı.","options":null,"effects":{"health":"Sabahları sahil sporcularla doldu.","transport":"Kısa mesafelerde araç trafiği azaldı."},"budget_effect":0,"stat_effects":{"health":2,"transport":3}},{"id":"490a6259-10cf-4ede-b524-7079ce74c89f","type":"event","title":"Deprem Tatbikatı","description":"AFAD ile birlikte tüm okullarda ve hastanede tahliye tatbikatı yapıldı.","options":null,"effects":{"security":"Toplanma alanları ve ekipler hazır."},"budget_effect":-10000,"stat_effects":{"security":4}},{"id":"344f35ab-a56e-474a-9bbd-22536c537c72","type":"event","title":"Doğa Turizmi Projesi","description":"Bölgeye doğa rotaları ve yürüyüş parkurları eklenmesi için bir turizm projesi hayata geçirildi. Bölge, sürdürülebilir turizm hedefiyle daha fazla ziyaretçi çekmeye başladı.","options":null,"effects":{"health":"Doğada daha fazla vakit geçirilmesiyle fiziksel ve zihinsel sağlık iyileşir.","social":"Bölge halkının yaşam kalitesi yükselir, istihdam olanakları artar.","economy":"Turizm gelirleri artar, yerel işletmeler canlanır.","environment":"Doğal alanlar korunur, çevre temizliği artar."},"budget_effect":35000,"stat_effects":{"health":3,"social":3}},{"id":"301315b7-9ff7-4bff-ad36-07e3a74b659c","type":"event","title":"Genç Girişimci Fuarı","description":"Belediye desteğiyle düzenlenen girişimcilik fuarına 500 kişi katıldı. 12 yeni iş fikri yatırım aldı.","options":null,"effects":{"social":"Gençlerin ilçeye bağlılığı arttı.","economy":"Yerel ekonomiye canlılık geldi, vergi tabanı genişleyebilir.","education":"Pratik iş deneyimi fırsatları ortaya çıktı."},"budget_effect":15000,"stat_effects":{"social":2,"education":3,"businessman_cash":50000}},{"id":"2e472e06-6df8-4bcb-a42d-8c490ab204d1","type":"event","title":"Sosyal Medyada Viral Video","description":"Bir zabıta memurunun yaşlı bir teyzenin pazar arabasını taşıdığı video milyonlarca kez izlendi.","options":null,"effects":{"social":"Belediyeye sempati arttı.","suspicion":"Gündem değişti, eleştiriler sustu."},"budget_effect":0,"stat_effects":{"social":4,"suspicion":-5}},{"id":"140d077d-ee7b-495d-ba09-cd0496ce0884","type":"event","title":"Tarımsal Destek Programı","description":"Bölgedeki çiftçilere sübvanse gübre ve sulama ekipmanı dağıtıldı. Verim artışı bekleniyor.","options":null,"effects":{"social":"Kırsal kesimde istihdam güçlenir.","economy":"Tarım gelirleri artar, gıda fiyatları dengede kalır."},"budget_effect":20000,"stat_effects":{"health":1,"social":3}},{"id":"9fd9e795-c330-4190-b6fc-971c88777d0f","type":"event","title":"Tekstil Fabrikası Kapandı","description":"İlçenin en büyük işvereni üretimi yurt dışına taşıdı. 400 kişi işsiz kaldı.","options":null,"effects":{"health":"Fabrika bacası sustu, hava biraz temizlendi.","social":"İşsizlik mahallelerde gerginlik yarattı.","economy":"Vergi geliri düştü."},"budget_effect":-30000,"stat_effects":{"health":2,"social":-5,"businessman_cash":-100000}},{"id":"76fa74ce-88e3-4428-874f-c5d1fbaabe2c","type":"event","title":"Vergi Denetimi","description":"Maliye müfettişleri ilçedeki büyük şirketlerin defterlerini inceledi.","options":null,"effects":{"economy":"Geçmiş vergi borçları tahsil edildi.","suspicion":"Kayıtlar temiz çıktı, dedikodular azaldı."},"budget_effect":40000,"stat_effects":{"suspicion":-10,"businessman_cash":-60000}},{"id":"3abc73a6-fde6-46a9-b055-cd3c3be59230","type":"event","title":"Yeni Aile Sağlığı Merkezi","description":"Uzun süredir beklenen aile sağlığı merkezi Yeşiltepe Mahallesi'nde açıldı.","options":null,"effects":{"health":"Randevu bekleme süresi yarıya indi."},"budget_effect":-30000,"stat_effects":{"health":6}}],"missions":[{"id":"d280c1a5-c2fe-4935-9e90-07ce536d9ce6","code":"M01","title":"Hava Kirliliği Lobisi","description":"Sanayi şirketleriyle gizli anlaşma yaptın. Şehrin hava kalitesini düşük tut.","win_condition":"Oyun sonunda Sağlık skoru 40 altında olsun.","target_metric":"health","target_value":40,"target_direction":"below"},{"id":"161fefb2-f335-4fd0-bb13-e27fc185d1e4","code":"M02","title":"Eğitim Engelcisi","description":"Rakip özel okul zincirinin adamısın. Devlet eğitimini zayıflat.","win_condition":"Oyun sonunda Eğitim skoru 45 altında olsun.","target_metric":"education","target_value":45,"target_direction":"below"},{"id":"95750398-a8dd-40bb-8c79-8098d9eb764e","code":"M03","title":"Güvenlik Baronı","description":"Özel güvenlik şirketine pay aldın. Huzursuzluk işine geliyor.","win_condition":"Oyun sonunda Güvenlik skoru 50 altında olsun.","target_metric":"security","target_value":50,"target_direction":"below"},{"id":"d7a45fbd-7d79-40a4-ae37-600abfcb72e9","code":"M04","title":"Ulaşım Tekeli","description":"Minibüs kooperatifinin ortağısın. Toplu taşıma gelişmesin.","win_condition":"Oyun sonunda Ulaşım skoru 55 altında olsun.","target_metric":"transport","target_value":55,"target_direction":"below"},{"id":"2bb5e7d1-a85c-458c-9085-b01faf364405","code":"M05","title":"Halk Kurtarıcısı","description":"Gerçek halk adamısın. Toplumsal refahı zirveye taşı.","win_condition":"Oyun sonunda Toplumsal skor 80 üzerinde olsun.","target_metric":"social","target_value":80,"target_direction":"above"},{"id":"e4883957-680c-43ea-9b20-a27f0f37a393","code":"M06","title":"Bütçe Avcısı","description":"Belediye kasasını boşalt, kimse fark etmesin.","win_condition":"Oyun sonunda belediye bütçesi 100K altında olsun.","target_metric":"treasury","target_value":100000,"target_direction":"below"},{"id":"a45cb5d0-30f8-44c1-a9ed-4a1755a49165","code":"M07","title":"Şüphe Ustası","description":"Rakiplerini yolsuzlukla suçla. Kendi şüpheni düşük tut.","win_condition":"Oyun sonunda şüphe 20 altında olsun.","target_metric":"suspicion","target_value":20,"target_direction":"below"},{"id":"26f15ae5-baa6-406f-93b3-8b7835b49e50","code":"M08","title":"Kaos Mühendisi","description":"Her şeyin kötüye gitmesini izle. Genel konfor düşsün.","win_condition":"Oyun sonunda genel konfor 45 altında olsun.","target_metric":"overall","target_value":45,"target_direction":"below"},{"id":"7c650fe9-d144-4176-a417-d63517bb1472","code":"M09","title":"Şehrin Kurtarıcısı","description":"Tüm engellemelere rağmen şehri refaha kavuştur.","win_condition":"Oyun sonunda genel konfor 75 üzerinde olsun.","target_metric":"overall","target_value":75,"target_direction":"above"}]}/*/SEED*/;
+let DEMO=false;
+let sb=null;
+try{if(!FORCE_DEMO&&window.supabase)sb=supabase.createClient(SURL,SKEY);}catch(e){}
+
+/* ═════ VERİ ═════ */
+const C={saglik:'#B03A63',paper:'#E8ECE6',sheet:'#F7F9F5',ink:'#16241F',ink3:'#6F7D76',rule:'#C3CDC5',
+  konut:'#E9A91C',ticari:'#C8372A',park:'#2E8553',kamu:'#2457A6',sanayi:'#6B55A0',petrol:'#2F6E78',ticariFill:'#E58B78'};
+const CITIES={
+  karadut:{name:'Karadut',kind:'ilçesi',acc:'Karadut ilçesini',diff:1,diffLabel:'Kolay',hex:C.park,sheet:'K-01',density:1,
+    mix:{konut:.5,park:.24,ticari:.14,sanayi:.04,kamu:.08},
+    desc:'Küçük, yemyeşil ve sakin bir ilçe. Ekonomisi dengeli, halkın beklentileri makul ve sorunlar henüz kontrolden çıkmış değil. Ancak huzurlu görünen bu ilçede bile alınması gereken kararlar ve çözülmesi gereken sorunlar var. Yönetim dünyasına adım atmak ve sistemin inceliklerini öğrenmek için ideal bir başlangıç.',
+    start:{health:38,education:64,security:61,transport:66,social:68,treasury:550000,businessman_cash:1100000}},
+  demirova:{name:'Demirova',kind:'kasabası',acc:'Demirova kasabasını',diff:2,diffLabel:'Orta',hex:C.sanayi,sheet:'D-02',density:1.2,
+    mix:{konut:.36,sanayi:.32,ticari:.16,park:.07,kamu:.09},
+    desc:'Sanayinin kalbinin attığı, ekonomisi güçlü ama bedeli ağır bir kasaba. Fabrikalar istihdam ve gelir sağlarken hava kirliliği, iş kazaları ve çevre protestoları gündemden hiç düşmüyor. Ekonomik büyüme ile halkın sağlığı ve çevrenin geleceği arasında hassas bir denge kurmak zorundasınız. Her kararın bir kazananı, bir de kaybedeni var.',
+    start:{health:45,education:55,security:58,transport:72,social:52,treasury:680000,businessman_cash:1500000}},
+  karagunduz:{name:'Karagündüz',kind:'şehri',acc:'Karagündüz şehrini',diff:3,diffLabel:'Zor',hex:C.ticari,sheet:'G-03',density:1.55,
+    mix:{konut:.44,ticari:.28,sanayi:.12,park:.06,kamu:.10},
+    desc:'Bir zamanların gözde metropolü, bugün büyük bir çıkmazın içinde. Belediye bütçesi tükenmenin eşiğinde, sağlık sistemi çöküyor ve toplumsal güven ciddi biçimde sarsılmış durumda. Şehirde herkes birbirinden şüpheleniyor, kurumlar işlevini yitiriyor ve krizler birbirini besliyor. Burada mesele şehri büyütmek değil, onu ayakta tutabilmek.',
+    start:{health:28,education:48,security:42,transport:55,social:38,treasury:280000,businessman_cash:800000}},
+};
+const ICON={
+  mayor:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 21h18M5 21V10m14 11V10M9 21v-6m6 6v-6M2.5 10L12 4l9.5 6z"/></svg>',
+  health_director:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z"/></svg>',
+  businessman:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 13h18"/></svg>',
+  police_chief:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>',
+  education_director:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2.2 9 2.2 12 0v-5M22 9v6"/></svg>',
+  journalist:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="14" height="15" rx="1"/><path d="M17 9h4v9a2 2 0 0 1-2 2H5M7 9h6M7 13h6M7 16h3"/></svg>',
+};
+const ROLES=[
+  {key:'mayor',name:'Belediye Başkanı',color:C.kamu,ep:6,brief:'Bütçe ve meclis',desc:'İlçe bütçesini sen yönetirsin ve halkın refahından ilk sorumlu sensin. 6 eylem puanın var.'},
+  {key:'health_director',name:'Sağlık Müdürü',color:C.saglik,ep:5,brief:'Hastaneler',desc:'Hastaneleri ve sağlık hizmetlerini denetlersin. Kriz anında ilk aranan kişisin. 5 eylem puanın var.'},
+  {key:'businessman',name:'İş İnsanı',color:'#B07D0E',ep:5,brief:'Yatırım ve ihaleler',desc:'Yerel ekonomiyi yönlendirir, yatırım ve ortaklıklar kurarsın. Kasan belediyeninkinden büyük. 5 eylem puanın var.'},
+  {key:'police_chief',name:'Emniyet Müdürü',color:C.petrol,ep:5,brief:'Karakollar ve asayiş',desc:'İlçenin asayişinden sen sorumlusun. Karakollar, devriyeler ve kameralar senin elinde. 5 eylem puanın var.'},
+  {key:'education_director',name:'Milli Eğitim Müdürü',color:C.park,ep:5,brief:'Okullar ve öğretmenler',desc:'Okulları, öğretmen kadrosunu ve eğitim bütçesini yönetirsin. 5 eylem puanın var.'},
+  {key:'journalist',name:'Gazeteci',color:'#C5541A',ep:4,brief:'Haber ve ifşa',desc:'Kimseye bağlı değilsin. Kirli işleri ortaya çıkarabilir ya da görmezden gelebilirsin. 4 eylem puanın var.'},
+];
+const BASE_ROLES=['mayor','health_director','businessman'];
+/* Oyuncu sayısı arttıkça kişi başı kart azalır; deste 24 kart */
+const cpp=n=>n<=3?6:n===4?5:4;
+const myCpp=()=>cpp(S.players?.length||2);
+const COMFORT=[
+  {key:'health',label:'Sağlık',sym:'S',color:C.saglik,w:.35},
+  {key:'education',label:'Eğitim',sym:'E',color:C.kamu,w:.15},
+  {key:'security',label:'Güvenlik',sym:'G',color:C.petrol,w:.15},
+  {key:'transport',label:'Ulaşım',sym:'',color:C.ink,w:.15},
+  {key:'social',label:'Toplumsal',sym:'',color:C.konut,w:.20},
+];
+const METRIC={health:'Sağlık',education:'Eğitim',security:'Güvenlik',transport:'Ulaşım',social:'Toplumsal',
+  suspicion:'Şüphe',businessman_cash:'İş insanı',treasury:'Bütçe',economy:'Ekonomi',environment:'Çevre'};
+const FX_ORDER=['health','education','security','transport','social','suspicion','businessman_cash'];
+
+/* ═════ YARDIMCILAR ═════ */
+const $=id=>document.getElementById(id);
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+const clamp=v=>Math.max(0,Math.min(100,v));
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const overall=gs=>Math.round(COMFORT.reduce((a,c)=>a+c.w*gs[c.key],0));
+function money(v){const a=Math.abs(v),s=v<0?'−':'';
+  if(a>=1e6)return s+'₺'+(a/1e6).toLocaleString('tr-TR',{maximumFractionDigits:2})+' milyon';
+  return s+'₺'+Math.round(a/1000).toLocaleString('tr-TR')+' bin';}
+const signed=v=>(v>0?'+':v<0?'−':'±')+Math.abs(v);
+const signedMoney=v=>(v>0?'+':'')+money(v);
+const reduceMotion=()=>window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function uuid(){
+  if(window.crypto?.randomUUID)return crypto.randomUUID();
+  return'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:(r&3|8)).toString(16)});
+}
+let tt;function toast(m,t=''){const el=$('toast');el.textContent=m;el.className=`toast show ${t}`;clearTimeout(tt);tt=setTimeout(()=>el.classList.remove('show'),3200)}
+
+/* ═════ TERCİHLER + SES ═════ */
+const PREF_KEY='tsim_prefs';
+const PREFS={sfx:true,music:false,volume:.6,motion:true};
+try{Object.assign(PREFS,JSON.parse(localStorage.getItem(PREF_KEY)||'{}'))}catch(e){}
+function savePrefs(){try{localStorage.setItem(PREF_KEY,JSON.stringify(PREFS))}catch(e){}}
+let AC=null;
+/* Kısa sentez sesler: dosya gerekmez. Gerçek ses dosyaları gelince yalnızca bu fonksiyon değişir. */
+function sfx(kind){
+  if(!PREFS.sfx||!PREFS.volume)return;
+  try{
+    AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();
+    const t=AC.currentTime,v=PREFS.volume*.22;
+    const tone=(f,dur,type='sine',at=0,f2)=>{const o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.setValueAtTime(f,t+at);
+      if(f2)o.frequency.exponentialRampToValueAtTime(f2,t+at+dur);g.gain.setValueAtTime(v,t+at);g.gain.exponentialRampToValueAtTime(.0001,t+at+dur);
+      o.connect(g);g.connect(AC.destination);o.start(t+at);o.stop(t+at+dur+.02)};
+    ({draw:()=>{tone(420,.07,'triangle');tone(660,.09,'triangle',.05)},
+      stamp:()=>{tone(150,.2,'square',0,55);tone(80,.28,'sine',0,40)},
+      notify:()=>{tone(880,.08);tone(1175,.12,'sine',.07)},
+      click:()=>tone(520,.035,'triangle'),
+      end:()=>{tone(523,.16,'triangle');tone(659,.16,'triangle',.13);tone(784,.34,'triangle',.26)}}[kind]||(()=>{}))();
+  }catch(e){}
+}
+function countTo(el,from,to){
+  if(from===to||reduceMotion()){el.textContent=to;return}
+  const t0=performance.now();(function f(t){const p=Math.max(0,Math.min(1,(t-t0)/600));el.textContent=Math.round(from+(to-from)*(1-Math.pow(1-p,3)));if(p<1)requestAnimationFrame(f)})(t0);
+}
+let tickT;
+function showTicker(p){
+  const c=S.cardMap?.[p.card_id];if(!c)return;
+  const who=esc((S.players||[]).find(x=>x.id===p.player_id)?.name||'Bir oyuncu');
+  const opt=c.type==='crisis'?(c.options||[])[p.chosen_option]:null;
+  $('ticker').innerHTML=c.type==='crisis'
+    ?`<span class="tag">Kriz</span><span><b>${who}</b> karar verdi: ${esc(c.title)}, ${esc(opt?.label||'')}</span>`
+    :`<span class="tag ev">Olay</span><span><b>${who}</b> bir olay açtı: ${esc(c.title)}</span>`;
+  $('ticker').classList.add('show');sfx('notify');
+  clearTimeout(tickT);tickT=setTimeout(()=>$('ticker').classList.remove('show'),4200);
+}
+
+/* ═════ İMAR PLANI ÇİZİMİ ═════
+   Plan uzayı 1000×600. Her ada bir metriğe bağlı: değeri düştükçe soluklaşır, 40 altında kırmızı tarama alır. */
+function rng(seed){let s=0;for(const ch of seed)s=(Math.imul(s,31)+ch.charCodeAt(0))>>>0;
+  return()=>{s=(s+0x6D2B79F5)>>>0;let t=s;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}}
+const PLAN_CACHE={};
+function buildPlan(key){
+  if(PLAN_CACHE[key])return PLAN_CACHE[key];
+  const city=CITIES[key]||CITIES.karadut,r=rng(key+'-pafta');
+  const blocks=[],streets=[],minS=150/city.density;
+  (function split(x,y,w,h,d){
+    const canV=w>minS*1.5,canH=h>minS*1.1;
+    if((!canV&&!canH)||(d>2&&r()<.16)){blocks.push({x,y,w,h});return}
+    const vert=canV&&(!canH||w/h>1.25||r()<.45);
+    const gap=d<2?16:8,t=.36+r()*.28;
+    if(vert){const a=w*t;streets.push({x1:x+a,y1:y,x2:x+a,y2:y+h,major:d<2});split(x,y,a-gap/2,h,d+1);split(x+a+gap/2,y,w-a-gap/2,h,d+1)}
+    else{const a=h*t;streets.push({x1:x,y1:y+a,x2:x+w,y2:y+a,major:d<2});split(x,y,w,a-gap/2,d+1);split(x,y+a+gap/2,w,h-a-gap/2,d+1)}
+  })(22,22,956,556,0);
+  const order=blocks.map((b,i)=>i).sort(()=>r()-.5);
+  const fac=['health','health','education','education','education','security'];
+  order.forEach((bi,j)=>{
+    const b=blocks[bi];
+    if(j<fac.length){b.zone='kamu';b.metric=fac[j];return}
+    let x=r(),acc=0;for(const[z,p]of Object.entries(city.mix)){acc+=p;if(x<=acc){b.zone=z;break}}
+    b.zone=b.zone||'konut';
+    b.metric={konut:'social',park:'health',ticari:'treasury',kamu:'security',sanayi:null}[b.zone];
+  });
+  blocks.forEach((b,i)=>{b.ada=101+i;b.order=(b.x+b.y)/1600+r()*.15});
+  return PLAN_CACHE[key]={blocks,streets};
+}
+function blockValue(b,gs,key){
+  if(!b.metric)return null;
+  if(b.metric==='treasury'){const st=(CITIES[key]||CITIES.karadut).start.treasury;return clamp(Math.round(55*gs.treasury/st))}
+  return gs[b.metric];
+}
+const ZONE_FILL={konut:C.konut,park:C.park,ticari:C.ticariFill,kamu:C.kamu,sanayi:C.sanayi};
+const FAC_COLOR={health:C.saglik,education:C.kamu,security:C.petrol};
+function hatch(ctx,b,color,step,dir){
+  ctx.save();ctx.beginPath();ctx.rect(b.x,b.y,b.w,b.h);ctx.clip();ctx.strokeStyle=color;ctx.lineWidth=1.6;ctx.beginPath();
+  if(dir==='h'){for(let y=b.y+step/2;y<b.y+b.h;y+=step){ctx.moveTo(b.x,y);ctx.lineTo(b.x+b.w,y)}}
+  else{for(let k=-b.h;k<b.w;k+=step){ctx.moveTo(b.x+k,b.y+b.h);ctx.lineTo(b.x+k+b.h,b.y)}}
+  ctx.stroke();ctx.restore();
+}
+function drawPlan(cv,key,gs,opt={}){
+  const W=cv.clientWidth;if(!W||!gs)return;
+  const H=Math.round(W*.6),dpr=Math.min(window.devicePixelRatio||1,2);
+  if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);cv.style.height=H+'px'}
+  const ctx=cv.getContext('2d'),k=W/1000;ctx.setTransform(dpr*k,0,0,dpr*k,0,0);
+  const plan=buildPlan(key),p=opt.progress??1,flash=opt.flash||new Set();
+  ctx.fillStyle=C.sheet;ctx.fillRect(0,0,1000,600);
+  ctx.strokeStyle='rgba(22,36,31,.06)';ctx.lineWidth=1;ctx.beginPath();
+  for(let x=0;x<=1000;x+=40){ctx.moveTo(x,0);ctx.lineTo(x,600)}for(let y=0;y<=600;y+=40){ctx.moveTo(0,y);ctx.lineTo(1000,y)}ctx.stroke();
+  // yollar: ulaşım düştükçe orta çizgi kopar, 40 altında kırmızılaşır
+  const tr=gs.transport??60,fade=Math.min(1,p*1.6);
+  plan.streets.forEach(s=>{
+    ctx.strokeStyle=tr<40?C.ticari:C.ink;ctx.lineWidth=s.major?2.2:1.1;ctx.globalAlpha=(s.major?.75:.4)*fade;
+    ctx.setLineDash(s.major?[18,4+(100-tr)/3]:[6,6+(100-tr)/6]);ctx.beginPath();ctx.moveTo(s.x1,s.y1);ctx.lineTo(s.x2,s.y2);ctx.stroke();
+  });
+  ctx.globalAlpha=1;ctx.setLineDash([]);
+  plan.blocks.forEach(b=>{
+    if(b.order>p*1.15)return;
+    const v=blockValue(b,gs,key),inset=3,bb={x:b.x+inset,y:b.y+inset,w:b.w-inset*2,h:b.h-inset*2};
+    if(bb.w<6||bb.h<6)return;
+    const fill=b.zone==='kamu'&&FAC_COLOR[b.metric]?FAC_COLOR[b.metric]:ZONE_FILL[b.zone];
+    ctx.globalAlpha=v==null?.5:.14+.6*(v/100);ctx.fillStyle=fill;ctx.fillRect(bb.x,bb.y,bb.w,bb.h);ctx.globalAlpha=1;
+    if(b.zone==='sanayi')hatch(ctx,bb,'rgba(107,85,160,.55)',7,'h');
+    if(v!=null&&v<40)hatch(ctx,bb,'rgba(200,55,42,'+(.35+.4*(40-v)/40)+')',Math.max(5,6+v/6),'d');
+    const fl=flash.has(b.metric);
+    ctx.strokeStyle=C.ink;ctx.lineWidth=fl?4.5:1.3;ctx.globalAlpha=fl?1:.7;ctx.strokeRect(bb.x,bb.y,bb.w,bb.h);ctx.globalAlpha=1;
+    if(b.zone==='kamu'&&FAC_COLOR[b.metric]&&bb.w>30&&bb.h>30){
+      const cx=bb.x+bb.w/2,cy=bb.y+bb.h/2,rr=Math.min(20,bb.w/3,bb.h/3);
+      ctx.fillStyle=C.sheet;ctx.beginPath();ctx.arc(cx,cy,rr,0,Math.PI*2);ctx.fill();ctx.lineWidth=2.4;ctx.strokeStyle=C.ink;ctx.stroke();
+      ctx.fillStyle=C.ink;ctx.font=`800 ${Math.round(rr*1.15)}px "Bricolage Grotesque", sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText({health:'S',education:'E',security:'G'}[b.metric],cx,cy+1);
+    }else if(bb.w>90&&bb.h>48){
+      ctx.fillStyle='rgba(22,36,31,.55)';ctx.font='600 15px "Instrument Sans", sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
+      ctx.fillText(b.ada,bb.x+7,bb.y+6);
+    }
+  });
+  ctx.strokeStyle=C.ink;ctx.lineWidth=3;ctx.strokeRect(10,10,980,580);
+}
+function animatePlan(cv,key,gs,ms=1400){
+  if(reduceMotion()){drawPlan(cv,key,gs);return}
+  const t0=performance.now();
+  (function f(t){const p=Math.max(0,Math.min(1,(t-t0)/ms));drawPlan(cv,key,gs,{progress:1-Math.pow(1-p,3)});if(p<1)requestAnimationFrame(f)})(t0);
+}
+/* ═════ CANLI KATMAN: trafik, alarm halkaları, uçan değerler ═════ */
+const LIVE={};let liveRaf=null,lastT=0;
+const motionOn=()=>PREFS.motion&&!reduceMotion();
+function live(cv,key,gs){
+  if(!cv||!gs)return;
+  let L=LIVE[cv.id];
+  if(!L){const ov=document.createElement('canvas');ov.className='plan-ov';ov.setAttribute('aria-hidden','true');cv.after(ov);L=LIVE[cv.id]={cv,ov,cars:[],floats:[]}}
+  L.key=key;L.gs=gs;L.plan=buildPlan(key);
+  const want=Math.round(6+(gs.transport??50)/4),n=L.plan.streets.length;
+  while(L.cars.length<want){const r=Math.random();L.cars.push({s:Math.floor(Math.random()*n),t:Math.random(),dir:Math.random()<.5?1:-1,kind:r<.12?'bus':r<.35?'taxi':'car',v:.6+Math.random()*.7})}
+  L.cars.length=Math.min(L.cars.length,want);
+  startLive();
+}
+function floatAt(id,metric,text,good){
+  const L=LIVE[id];if(!L||!motionOn())return;
+  L.plan.blocks.filter(b=>b.metric===metric&&b.w>40&&b.h>40).sort(()=>Math.random()-.5).slice(0,3)
+    .forEach((b,i)=>L.floats.push({x:b.x+b.w/2,y:b.y+b.h/2,text,good,t0:performance.now()+i*140}));
+}
+function startLive(){if(liveRaf||!motionOn())return;lastT=performance.now();liveRaf=requestAnimationFrame(liveTick)}
+function clearLive(){Object.values(LIVE).forEach(L=>{const c=L.ov.getContext('2d');c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,L.ov.width,L.ov.height)})}
+function liveTick(now){
+  liveRaf=null;if(!motionOn()){clearLive();return}
+  const dt=Math.min(.05,(now-lastT)/1000);lastT=now;let any=false;
+  for(const L of Object.values(LIVE)){
+    const{cv,ov}=L;if(!cv.offsetParent||!cv.width)continue;any=true;
+    if(ov.width!==cv.width||ov.height!==cv.height){ov.width=cv.width;ov.height=cv.height;ov.style.height=cv.style.height}
+    const ctx=ov.getContext('2d'),W=cv.clientWidth,k=W/1000,dpr=cv.width/W;
+    ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,ov.width,ov.height);ctx.setTransform(dpr*k,0,0,dpr*k,0,0);
+    const tr=L.gs.transport??60,jam=tr<40,st=L.plan.streets;
+    for(const c of L.cars){
+      let s=st[c.s];const len=Math.hypot(s.x2-s.x1,s.y2-s.y1)||1;
+      c.t+=c.dir*dt*(18+tr*1.3)*c.v*(jam?.3:1)/len;
+      if(c.t>1||c.t<0){c.s=Math.floor(Math.random()*st.length);c.t=c.dir>0?0:1;s=st[c.s]}
+      const vx=s.x2-s.x1,vy=s.y2-s.y1,l=Math.hypot(vx,vy)||1,off=(s.major?4.5:0)*c.dir;
+      const x=s.x1+vx*c.t-vy/l*off,y=s.y1+vy*c.t+vx/l*off;
+      ctx.save();ctx.translate(x,y);ctx.rotate(Math.atan2(vy,vx));
+      const w=c.kind==='bus'?22:12,h=c.kind==='bus'?7:6;
+      ctx.fillStyle=c.kind==='bus'?C.kamu:c.kind==='taxi'?C.konut:(jam?C.ticari:C.ink);
+      ctx.fillRect(-w/2,-h/2,w,h);ctx.restore();
+    }
+    const pulse=(Math.sin(now/360)+1)/2;
+    for(const b of L.plan.blocks){
+      if(b.zone!=='kamu'||!FAC_COLOR[b.metric])continue;const v=L.gs[b.metric];if(v==null||v>=40)continue;
+      const cx=b.x+b.w/2,cy=b.y+b.h/2,base=Math.min(20,(b.w-6)/3,(b.h-6)/3);
+      ctx.strokeStyle=`rgba(200,55,42,${.75-pulse*.65})`;ctx.lineWidth=3;ctx.beginPath();ctx.arc(cx,cy,base+5+pulse*16,0,Math.PI*2);ctx.stroke();
+    }
+    L.floats=L.floats.filter(f=>now-f.t0<1900);
+    for(const f of L.floats){const a=(now-f.t0)/1900;if(a<0)continue;const y=f.y-a*70;
+      ctx.globalAlpha=Math.min(1,(1-a)*1.6);ctx.font='800 40px "Bricolage Grotesque", sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.lineWidth=7;ctx.strokeStyle=C.sheet;ctx.strokeText(f.text,f.x,y);ctx.fillStyle=f.good?C.park:C.ticari;ctx.fillText(f.text,f.x,y);ctx.globalAlpha=1}
+  }
+  if(any)liveRaf=requestAnimationFrame(liveTick);
+}
+
+let rsT;window.addEventListener('resize',()=>{clearTimeout(rsT);rsT=setTimeout(redrawVisible,120)});
+function redrawVisible(){
+  const act=document.querySelector('.screen.active')?.id;
+  if(act==='s-name')drawPlan($('hero-plan'),'karadut',CITIES.karadut.start);
+  if(act==='s-city')Object.keys(CITIES).forEach(k=>drawPlan($('cp-'+k),k,CITIES[k].start));
+  if(act==='s-game'&&S.gameState)drawPlan($('game-plan'),S.selectedCity,S.gameState);
+  if(act==='s-end'&&S.gameState)drawPlan($('end-plan'),S.selectedCity,S.gameState);
+}
+if(document.fonts)document.fonts.ready.then(redrawVisible);
+
+/* ═════ SAHTE SUPABASE (demo) ═════ */
+function createMockClient(seed){
+  const T={rooms:[],players:[],game_state:[],played_cards:[],
+    cards:(seed?.cards||[]).map(c=>({...c})),secret_missions:(seed?.missions||[]).map(m=>({...m}))};
+  const DEF={rooms:{status:'waiting',max_players:3,corruption_enabled:true,host_id:null},
+    players:{role:null,is_ready:false,secret_mission_id:null},game_state:{suspicion:0},played_cards:{chosen_option:null}};
+  const TS={rooms:'created_at',players:'joined_at',played_cards:'played_at',game_state:'updated_at'};
+  const chans=new Set();let tick=0;const clone=r=>JSON.parse(JSON.stringify(r));
+  function emit(table,eventType,row){
+    chans.forEach(ch=>ch.subs.forEach(s=>{
+      if(s.table!==table)return;const m=s.filter&&s.filter.match(/^(\w+)=eq\.(.+)$/);
+      if(m&&String(row[m[1]])!==m[2])return;setTimeout(()=>s.cb({eventType,new:clone(row),table}),0);
+    }));
+  }
+  class Q{
+    constructor(t){this.t=t;this.op='select';this.f=[];this.ord=null}
+    select(){return this}insert(b){this.op='insert';this.body=b;return this}update(b){this.op='update';this.body=b;return this}
+    delete(){this.op='delete';return this}eq(k,v){this.f.push([k,v]);return this}order(c,o={}){this.ord=[c,o.ascending!==false];return this}
+    hit(r){return this.f.every(([k,v])=>String(r[k])===String(v))}
+    run(){
+      const rows=T[this.t];if(!rows)return{data:null,error:{message:'Tablo bulunamadı: '+this.t}};
+      if(this.op==='insert'){const data=(Array.isArray(this.body)?this.body:[this.body]).map(b=>{
+        const r={id:uuid(),...(DEF[this.t]||{}),...b};if(TS[this.t]&&!r[TS[this.t]])r[TS[this.t]]=new Date(Date.now()+(tick++)).toISOString();
+        rows.push(r);emit(this.t,'INSERT',r);return clone(r)});return{data,error:null}}
+      if(this.op==='update'){const data=[];rows.forEach(r=>{if(!this.hit(r))return;Object.assign(r,this.body);if(this.t==='game_state')r.updated_at=new Date().toISOString();emit(this.t,'UPDATE',r);data.push(clone(r))});return{data,error:null}}
+      if(this.op==='delete'){const keep=[],gone=[];rows.forEach(r=>(this.hit(r)?gone:keep).push(r));T[this.t]=keep;gone.forEach(r=>emit(this.t,'DELETE',r));return{data:gone.map(clone),error:null}}
+      const data=rows.filter(r=>this.hit(r)).map(clone);
+      if(this.ord){const[c,asc]=this.ord;data.sort((a,b)=>(a[c]>b[c]?1:a[c]<b[c]?-1:0)*(asc?1:-1))}
+      return{data,error:null};
+    }
+    then(ok,ko){return wait(40+Math.random()*60).then(()=>this.run()).then(ok,ko)}
+  }
+  function rpc(name,a){
+    return wait(40+Math.random()*60).then(()=>{
+      if(name!=='apply_card_effects')return{data:null,error:{message:'Bilinmeyen fonksiyon: '+name}};
+      const g=T.game_state.find(r=>r.room_id===a.p_room);if(!g)return{data:[],error:null};const d=a.p_delta||{};
+      ['health','education','security','transport','social'].forEach(k=>{if(d[k])g[k]=clamp(g[k]+d[k])});
+      if(d.treasury)g.treasury+=d.treasury;
+      if(d.businessman_cash)g.businessman_cash=Math.max(0,g.businessman_cash+d.businessman_cash);
+      if(a.p_corruption&&d.suspicion)g.suspicion=clamp((g.suspicion||0)+d.suspicion);
+      g.updated_at=new Date().toISOString();emit('game_state','UPDATE',g);return{data:[clone(g)],error:null};
+    });
+  }
+  return{from:t=>new Q(t),rpc,
+    channel(){return{subs:[],on(type,o,cb){this.subs.push({table:o.table,filter:o.filter,cb});return this},subscribe(){chans.add(this);return this}}},
+    removeChannel(ch){chans.delete(ch)}};
+}
+function enterDemo(){
+  DEMO=true;sb=createMockClient(DEMO_SEED);document.body.classList.add('is-demo');S.mode='create';
+}
+
+/* ═════ DB ═════ */
+async function dbGet(t,f={}){let q=sb.from(t).select('*');Object.entries(f).forEach(([k,v])=>q=q.eq(k,v));const{data,error}=await q;if(error)throw new Error(error.message);return data}
+async function dbPost(t,b){const{data,error}=await sb.from(t).insert(b).select();if(error)throw new Error(error.message);return data}
+async function dbPatch(t,f,b){let q=sb.from(t).update(b);Object.entries(f).forEach(([k,v])=>q=q.eq(k,v));const{data,error}=await q.select();if(error)throw new Error(error.message);return data}
+let rtCh=null,pollT=null,rtN=0;
+/* Gerçek zamanlı kanal. Her abonelik benzersiz bir konu adı alır: eski kanalın "ayrıl" mesajı yenisini düşürmesin. */
+function startRT(roomId,cbs){
+  stopRT();
+  setConn('wait');
+  rtCh=sb.channel(`room:${roomId}:${Date.now().toString(36)}${++rtN}`)
+    .on('postgres_changes',{event:'*',schema:'public',table:'players',filter:`room_id=eq.${roomId}`},()=>cbs.players?.())
+    .on('postgres_changes',{event:'*',schema:'public',table:'game_state',filter:`room_id=eq.${roomId}`},()=>cbs.gs?.())
+    .on('postgres_changes',{event:'*',schema:'public',table:'rooms',filter:`id=eq.${roomId}`},()=>cbs.rooms?.())
+    .on('postgres_changes',{event:'*',schema:'public',table:'played_cards',filter:`room_id=eq.${roomId}`},()=>cbs.played?.())
+    .subscribe(st=>{
+      if(st==='SUBSCRIBED'){setConn('ok');cbs.resync?.()}
+      else if(st==='CHANNEL_ERROR'||st==='TIMED_OUT'||st==='CLOSED')setConn('bad');
+    });
+  // Yedek: bağlantı kopsa bile durum birkaç saniyede bir yeniden okunur
+  if(cbs.resync)pollT=setInterval(()=>cbs.resync().catch(()=>{}),cbs.every||3000);
+}
+function stopRT(){
+  if(pollT){clearInterval(pollT);pollT=null}
+  if(rtCh){const ch=rtCh;rtCh=null;try{sb.removeChannel(ch)}catch(e){}}
+}
+function setConn(st){
+  document.querySelectorAll('.conn').forEach(el=>{
+    el.className='conn '+(st==='ok'?'ok':st==='bad'?'bad':'');
+    el.lastChild.textContent=DEMO?'Demo':st==='ok'?'Canlı':st==='bad'?'Yeniden bağlanıyor':'Bağlanıyor';
+  });
+}
+
+/* ═════ OTURUM ═════ */
+const SK='tsim_v3';
+const S={playerName:'',playerId:null,roomId:null,roomCode:'',isHost:false,myRole:null,gameState:null,players:[],selectedOpt:null,selectedCity:null,myMission:null,pendingMissions:[],played:[]};
+function saveSess(){if(DEMO)return;try{localStorage.setItem(SK,JSON.stringify({playerId:S.playerId,roomId:S.roomId,roomCode:S.roomCode,isHost:S.isHost,playerName:S.playerName,selectedCity:S.selectedCity,myMission:S.myMission}))}catch(e){}}
+function clearSess(){try{localStorage.removeItem(SK)}catch(e){}}
+async function restoreSess(){
+  if(DEMO||!sb)return false;
+  try{
+    const raw=localStorage.getItem(SK);if(!raw)return false;
+    const s=JSON.parse(raw);if(!s.roomId||!s.playerId)return false;
+    const rooms=await dbGet('rooms',{id:s.roomId});
+    if(!rooms.length||rooms[0].status==='ended'){clearSess();return false}
+    const players=await dbGet('players',{id:s.playerId});
+    if(!players.length){clearSess();return false}
+    Object.assign(S,{playerId:s.playerId,roomId:s.roomId,roomCode:s.roomCode,isHost:s.isHost,playerName:s.playerName,selectedCity:s.selectedCity||rooms[0].city||'karadut',myMission:s.myMission||null});
+    const st=rooms[0].status;
+    if(st==='waiting'||st==='assigning')await enterWait();
+    else if(st==='playing'){const me=players[0];if(me.role){S.myRole=ROLES.find(r=>r.key===me.role);await enterGame()}else await enterWait()}
+    return true;
+  }catch(e){clearSess();return false}
+}
+
+/* ═════ GEZİNME ═════ */
+function goTo(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  $(id).classList.add('active');window.scrollTo(0,0);
+  document.body.classList.toggle('on-game',id==='s-game'||id==='s-end');
+  document.body.classList.toggle('in-room',!!S.roomId&&['s-wait','s-env','s-mission'].includes(id));
+  setTimeout(startLive,60);
+  if(id==='s-lobby')updateLobbyUI();
+  if(id==='s-city')requestAnimationFrame(()=>Object.keys(CITIES).forEach(k=>drawPlan($('cp-'+k),k,CITIES[k].start)));
+  if(id==='s-name')requestAnimationFrame(()=>{drawPlan($('hero-plan'),'karadut',CITIES.karadut.start);live($('hero-plan'),'karadut',CITIES.karadut.start)});
+}
+window.goTo=goTo;
+
+/* ═════ GİRİŞ ═════ */
+$('btn-next-city').onclick=()=>{
+  const name=$('input-name').value.trim();
+  if(!name){toast('Önce adını yaz. Diğer oyuncular seni bu adla görecek.','error');$('input-name').focus();return}
+  if(!sb&&!DEMO){toast('Sunucuya bağlanılamadı. Botlarla demo oyunu deneyebilirsin.','error');return}
+  S.playerName=name;$('mode-name').textContent=name;
+  if(DEMO){S.mode='create';goTo('s-city')}else goTo('s-mode');
+};
+window.chooseMode=function(m){
+  S.mode=m;
+  if(m==='create')goTo('s-city');else goTo('s-lobby');
+};
+window.lobbyBack=function(){goTo(S.mode==='create'?'s-city':'s-mode')};
+$('input-name').addEventListener('keydown',e=>{if(e.key==='Enter')$('btn-next-city').click()});
+$('btn-demo').onclick=()=>{if(!DEMO)enterDemo();$('btn-next-city').click()};
+$('input-code').addEventListener('keydown',e=>{if(e.key==='Enter')$('btn-join').click()});
+
+/* ═════ ŞEHİR ═════ */
+function cityChip(k){const c=CITIES[k]||CITIES.karadut;return`<i style="background:${c.hex}"></i>${c.name}<span>${c.diffLabel}</span>`}
+function renderCities(){
+  $('city-list').innerHTML=Object.entries(CITIES).map(([k,c])=>{
+    const st=c.start;
+    return`<article class="city" id="city-${k}">
+      <div class="plan"><canvas id="cp-${k}" aria-label="${c.name} imar planı"></canvas>
+        <div class="antet"><div class="k">Pafta</div><div class="v">${c.sheet}</div></div></div>
+      <div class="city-body">
+        <div class="city-top"><h3 class="display city-name">${c.name}</h3>
+          <div class="diff">${c.diffLabel}<div class="diff-bar">${[1,2,3].map(i=>`<i class="${i<=c.diff?'on':''}"></i>`).join('')}</div></div></div>
+        <p class="city-desc">${c.desc}</p>
+        <div class="stats">${COMFORT.map(m=>`<div class="stat"><div class="v" style="${st[m.key]<40?'color:var(--ticari)':''}">${st[m.key]}</div><div class="k">${m.label}</div></div>`).join('')}</div>
+        <div class="money-line"><span>Belediye kasası <b>${money(st.treasury)}</b></span><span>İş insanı <b>${money(st.businessman_cash)}</b></span></div>
+        <button class="btn btn-line" type="button" id="sel-${k}" onclick="selectCity('${k}')">${c.acc} seç</button>
+      </div></article>`;
+  }).join('');
+}
+window.selectCity=function(k){
+  S.selectedCity=k;
+  Object.keys(CITIES).forEach(c=>{
+    $('city-'+c).classList.toggle('selected',c===k);
+    $('sel-'+c).textContent=c===k?'Seçildi':`${CITIES[c].acc} seç`;
+  });
+  const b=$('btn-city-next');b.disabled=false;b.textContent=`${CITIES[k].name} ile devam et`;
+};
+
+/* ═════ LOBİ ═════ */
+let lobbyMaxPlayers=3,lobbyCorruption=true,lobbyRoles=new Set(BASE_ROLES);
+function switchTab(t){
+  $('panel-create').classList.toggle('active',t==='create');$('panel-join').classList.toggle('active',t==='join');
+}
+window.setMaxPlayers=function(n){
+  lobbyMaxPlayers=n;
+  // Rol sayısı oyuncu sayısının altına düşmesin: eksikse sıradaki rolleri ekle
+  for(const r of ROLES){if(lobbyRoles.size>=n)break;lobbyRoles.add(r.key)}
+  renderLobbyControls();
+};
+window.toggleRole=function(k){
+  if(lobbyRoles.has(k)){
+    if(lobbyRoles.size<=lobbyMaxPlayers){toast(`${lobbyMaxPlayers} oyuncu için en az ${lobbyMaxPlayers} rol gerekli. Önce oyuncu sayısını azalt.`,'error');return}
+    lobbyRoles.delete(k);
+  }else lobbyRoles.add(k);
+  sfx('click');renderLobbyControls();
+};
+function renderLobbyControls(){
+  $('count-seg').innerHTML=[2,3,4,5,6].map(n=>`<button type="button" role="radio" aria-checked="${n===lobbyMaxPlayers}" class="${n===lobbyMaxPlayers?'active':''}" onclick="setMaxPlayers(${n})">${n}</button>`).join('');
+  $('count-note').textContent=`Kişi başı ${cpp(lobbyMaxPlayers)} kart, toplam ${cpp(lobbyMaxPlayers)*lobbyMaxPlayers} karar`;
+  $('role-count').textContent=`${lobbyRoles.size}/6 rol seçili`;
+  $('role-grid').innerHTML=ROLES.map(r=>`<button type="button" class="role-t" aria-pressed="${lobbyRoles.has(r.key)}" onclick="toggleRole('${r.key}')">
+    <span class="ic" style="background:${r.color}">${ICON[r.key]}</span><span><b>${r.name}</b><small>${r.brief}</small></span><span class="ck"></span></button>`).join('');
+  updateLobbyInfo();
+}
+window.setCorruption=function(v,el){lobbyCorruption=v;['pill-cor-on','pill-cor-off'].forEach(i=>$(i).classList.remove('active'));el.classList.add('active');updateLobbyInfo()};
+function updateLobbyInfo(){
+  const c=CITIES[S.selectedCity]||CITIES.karadut;
+  $('create-info-box').innerHTML=`<strong>${c.name}</strong> için en fazla <strong>${lobbyMaxPlayers} kişilik</strong> bir masa kuruyorsun. Roller seçili ${lobbyRoles.size} rol arasından rastgele dağıtılır. Yolsuzluk şüphesi <strong>${lobbyCorruption?'açık':'kapalı'}</strong>.${DEMO?' Boş koltuklara botlar oturur.':''}`;
+}
+function updateLobbyUI(){
+  const create=S.mode!=='join';switchTab(create?'create':'join');
+  $('lobby-title').textContent=create?'Oyun ayarları':'Odaya katıl';
+  $('lobby-back-txt').textContent=create?'İlçeyi değiştir':'Geri';
+  $('lobby-city-pill').style.display=create?'':'none';
+  if(create){$('lobby-city-pill').innerHTML=cityChip(S.selectedCity);renderLobbyControls()}
+  else updateLobbyInfo();
+  if(!create)setTimeout(()=>$('input-code').focus(),50);
+}
+
+$('btn-create').onclick=async()=>{
+  if(!S.selectedCity){toast('Önce bir ilçe seç.','error');goTo('s-city');return}
+  try{
+    const code=Math.random().toString(36).substring(2,8).toUpperCase().padEnd(6,'X');
+    const[room]=await dbPost('rooms',{code,status:'waiting',city:S.selectedCity,max_players:lobbyMaxPlayers,corruption_enabled:lobbyCorruption,roles:[...lobbyRoles]});
+    S.roomId=room.id;S.roomCode=room.code;S.isHost=true;S.maxPlayers=lobbyMaxPlayers;
+    await dbPatch('rooms',{id:room.id},{host_id:room.id});
+    const[player]=await dbPost('players',{room_id:room.id,name:S.playerName,is_ready:false});
+    S.playerId=player.id;
+    await dbPost('game_state',{room_id:room.id,...CITIES[S.selectedCity].start,suspicion:0});
+    saveSess();await enterWait();
+    if(DEMO)spawnBots(room.id,lobbyMaxPlayers-1);
+  }catch(e){toast('Oda kurulamadı: '+e.message,'error')}
+};
+$('btn-join').onclick=async()=>{
+  const code=$('input-code').value.trim().toUpperCase();
+  if(code.length!==6){toast('Oda kodu 6 karakter olmalı.','error');return}
+  try{
+    const{data:rooms,error}=await sb.from('rooms').select('*').eq('code',code).eq('status','waiting');
+    if(error)throw new Error(error.message);
+    if(!rooms.length){toast(`${code} kodlu bekleyen oda yok. Kodu kontrol et.`,'error');return}
+    const room=rooms[0];
+    const{data:inRoom}=await sb.from('players').select('*').eq('room_id',room.id);
+    if((inRoom||[]).length>=(room.max_players||3)){toast(`Bu oda dolu (${room.max_players} kişilik).`,'error');return}
+    S.roomId=room.id;S.roomCode=room.code;S.isHost=false;S.selectedCity=room.city||'karadut';S.maxPlayers=room.max_players;
+    const[player]=await dbPost('players',{room_id:room.id,name:S.playerName,is_ready:false});
+    S.playerId=player.id;saveSess();await enterWait();
+  }catch(e){toast('Odaya katılınamadı: '+e.message,'error')}
+};
+/* Odadan / oyundan çık. Bekleme odasında kurucu çıkarsa oda kapanır; oyunda 2'den az kişi kalırsa oyun biter. */
+window.leaveRoom=async function(){
+  const roomId=S.roomId,playerId=S.playerId,wasHost=S.isHost;
+  stopRT();BOTS=[];closeSettings();closeCard();$('mission-overlay').classList.remove('open');
+  try{
+    if(playerId)await sb.from('players').delete().eq('id',playerId);
+    if(roomId){
+      const room=(await dbGet('rooms',{id:roomId}))[0],rest=await dbGet('players',{room_id:roomId});
+      if(room&&room.status!=='ended'&&(DEMO||(room.status==='waiting'&&wasHost)||(room.status!=='waiting'&&rest.length<2)))
+        await dbPatch('rooms',{id:roomId},{status:'ended'});
+    }
+  }catch(e){console.warn('çıkış',e)}
+  if(DEMO)sb=createMockClient(DEMO_SEED);
+  clearSess();
+  Object.assign(S,{playerId:null,roomId:null,roomCode:'',isHost:false,myRole:null,gameState:null,players:[],selectedOpt:null,myMission:null,pendingMissions:[],played:[],ended:false,endShown:false,_seen:null,_pids:null});
+  goTo(DEMO?'s-city':'s-mode');toast('Oyundan çıktın.');
+};
+window.cancelRoom=window.leaveRoom;
+
+/* ═════ AYARLAR ═════ */
+function setSwitch(id,on){$(id).setAttribute('aria-checked',String(!!on))}
+function initSettings(){
+  setSwitch('sw-sfx',PREFS.sfx);setSwitch('sw-music',PREFS.music);setSwitch('sw-motion',PREFS.motion);
+  $('set-vol').value=Math.round(PREFS.volume*100);$('vol-txt').textContent=`%${Math.round(PREFS.volume*100)}`;
+  $('sw-sfx').onclick=()=>{PREFS.sfx=!PREFS.sfx;setSwitch('sw-sfx',PREFS.sfx);savePrefs();sfx('click')};
+  $('sw-music').onclick=()=>{PREFS.music=!PREFS.music;setSwitch('sw-music',PREFS.music);savePrefs();if(PREFS.music)toast('Müzik henüz eklenmedi. Tercihin kaydedildi.')};
+  $('sw-motion').onclick=()=>{PREFS.motion=!PREFS.motion;setSwitch('sw-motion',PREFS.motion);savePrefs();if(PREFS.motion)startLive();else clearLive()};
+  $('set-vol').oninput=e=>{PREFS.volume=e.target.value/100;$('vol-txt').textContent=`%${e.target.value}`;savePrefs()};
+  $('set-vol').onchange=()=>sfx('click');
+  $('set-copy').onclick=async()=>{try{await navigator.clipboard.writeText(S.roomCode);toast('Kod kopyalandı.','success')}catch(e){toast(`Kopyalanamadı. Kod: ${S.roomCode}`)}};
+  let armT;
+  $('btn-leave').onclick=()=>{
+    const b=$('btn-leave');
+    if(!b.classList.contains('armed')){b.classList.add('armed');b.textContent='Çıkmak için tekrar dokun';clearTimeout(armT);armT=setTimeout(()=>{b.classList.remove('armed');b.textContent=leaveLabel()},3500);return}
+    clearTimeout(armT);b.classList.remove('armed');leaveRoom();
+  };
+}
+function leaveLabel(){return $('s-game').classList.contains('active')?'Oyundan çık':'Odadan çık'}
+window.openSettings=function(){
+  const inRoom=!!S.roomId;
+  $('set-room').style.display=inRoom?'':'none';$('btn-leave').style.display=inRoom?'':'none';
+  if(inRoom){
+    $('set-code').textContent=S.roomCode;
+    const c=CITIES[S.selectedCity]||CITIES.karadut;
+    $('set-room-info').textContent=`${c.name}, ${S.players?.length||1} oyuncu${S.myRole?`. Rolün: ${S.myRole.name}`:''}`;
+  }
+  $('btn-leave').classList.remove('armed');$('btn-leave').textContent=leaveLabel();
+  $('settings-overlay').classList.add('open');
+};
+window.closeSettings=function(e){if(!e||e.target.id==='settings-overlay')$('settings-overlay').classList.remove('open')};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeSettings();closeMissionOverlay()}});
+
+/* ═════ BEKLEME ═════ */
+async function enterWait(){
+  $('disp-code').innerHTML=[...S.roomCode].map(ch=>`<span>${esc(ch)}</span>`).join('');
+  $('wait-badge').innerHTML=cityChip(S.selectedCity);
+  goTo('s-wait');
+  try{const r=(await dbGet('rooms',{id:S.roomId}))[0];if(r){S.maxPlayers=r.max_players;S.selectedCity=r.city||S.selectedCity;$('wait-badge').innerHTML=cityChip(S.selectedCity)}}catch(e){}
+  await loadPlayers();
+  startRT(S.roomId,{players:()=>loadPlayers(),rooms:()=>checkRoomRT(),gs:()=>{},resync:async()=>{await loadPlayers();await checkRoomRT()},every:2500});
+}
+$('btn-copy-code').onclick=async()=>{
+  try{await navigator.clipboard.writeText(S.roomCode);toast('Kod kopyalandı.','success')}
+  catch(e){toast(`Kopyalanamadı. Kodu elle paylaş: ${S.roomCode}`)}
+};
+async function loadPlayers(){
+  const{data:pl}=await sb.from('players').select('*').eq('room_id',S.roomId).order('joined_at');
+  if(!pl)return;S.players=pl;
+  const max=Math.max(pl.length,S.maxPlayers||lobbyMaxPlayers||3);
+  let html=pl.map((p,i)=>{
+    const me=p.id===S.playerId;
+    return`<div class="prow"><div class="av">${esc(p.name[0].toLocaleUpperCase('tr-TR'))}</div><div class="nm">${esc(p.name)}${me?' (sen)':''}<small>${i===0?'Odayı kurdu':'Masaya oturdu'}</small></div>${i===0?'<span class="tag host">Kurucu</span>':''}</div>`;
+  }).join('');
+  for(let i=pl.length;i<max;i++)html+=`<div class="prow"><div class="av empty">?</div><div class="nm" style="color:var(--ink-3)">Boş koltuk<small>Kodla katılmasını bekle</small></div></div>`;
+  $('plist').innerHTML=html;
+  const btn=$('btn-start'),hint=$('start-hint');
+  if(S.isHost&&pl.length>=2){btn.style.display='flex';hint.textContent=pl.length>=max?`Masa doldu. Başlatınca roller rastgele dağıtılır.`:`${pl.length} oyuncu hazır. İstersen beklemeden başlatabilirsin.`}
+  else{btn.style.display='none';hint.textContent=pl.length<2?`Başlamak için en az 2 oyuncu gerekli. Şu an ${pl.length} kişisiniz.`:'Odayı kuran kişinin oyunu başlatması bekleniyor.'}
+}
+$('btn-start').onclick=async()=>{
+  try{
+    $('btn-start').disabled=true;
+    await dbPatch('rooms',{id:S.roomId},{status:'assigning'});
+    const{data:pl}=await sb.from('players').select('*').eq('room_id',S.roomId).order('joined_at');
+    const room=(await dbGet('rooms',{id:S.roomId}))[0];
+    let pool=(room?.roles?.length?room.roles:BASE_ROLES).filter(k=>ROLES.some(r=>r.key===k));
+    for(const r of ROLES){if(pool.length>=pl.length)break;if(!pool.includes(r.key))pool.push(r.key)}
+    pool=[...pool].sort(()=>Math.random()-.5);
+    for(let i=0;i<pl.length;i++)await dbPatch('players',{id:pl[i].id},{role:pool[i%pool.length]});
+    if(DEMO)await assignBotMissions();
+    await dbPatch('rooms',{id:S.roomId},{status:'playing'});
+    await loadMyRole();
+  }catch(e){toast('Oyun başlatılamadı: '+e.message,'error')}
+  finally{$('btn-start').disabled=false}
+};
+async function checkRoomRT(){
+  const rooms=await dbGet('rooms',{id:S.roomId});const st=rooms[0]?.status;
+  if(st==='playing'||st==='assigning')await loadMyRole();
+  if((!rooms.length||st==='ended')&&$('s-wait').classList.contains('active')){stopRT();toast('Odayı kuran kişi odayı kapattı.','error');clearSess();goTo('s-mode')}
+}
+async function loadMyRole(){
+  if(document.querySelector('#s-env.active,#s-mission.active,#s-game.active'))return;
+  const pl=await dbGet('players',{id:S.playerId});const me=pl[0];if(!me?.role)return;
+  S.myRole=ROLES.find(r=>r.key===me.role)||ROLES[0];saveSess();stopRT();showRoleEnv(S.myRole);
+}
+
+/* ═════ DEMO BOTLARI ═════ */
+const BOT_NAMES=['Ayşe','Mert','Zeynep','Kerem','Elif','Burak','Deniz'];
+let BOTS=[];
+async function spawnBots(roomId,n){
+  BOTS=[];const names=[...BOT_NAMES].sort(()=>Math.random()-.5).slice(0,n);
+  for(let i=0;i<n;i++){
+    await wait(900);if(S.roomId!==roomId)return;
+    const r=(await dbGet('rooms',{id:roomId}))[0];if(r?.status!=='waiting')return;
+    const[p]=await dbPost('players',{room_id:roomId,name:names[i],is_ready:true});
+    BOTS.push({id:p.id,name:names[i],mission:null,busy:false});
+  }
+}
+async function assignBotMissions(){
+  const all=[...await dbGet('secret_missions')].sort(()=>Math.random()-.5);
+  for(const b of BOTS){b.mission=all.pop();await dbPatch('players',{id:b.id},{secret_mission_id:b.mission.id})}
+}
+function botChoose(card,mission){
+  const opts=card.options||[];if(!opts.length)return null;
+  if(!mission||Math.random()<.3)return Math.floor(Math.random()*opts.length);
+  const m=mission.target_metric,dir=mission.target_direction==='above'?1:-1;let best=0,bs=-Infinity;
+  opts.forEach((o,i)=>{const e=o.effects||{};let s;
+    if(m==='overall')s=COMFORT.reduce((a,c)=>a+c.w*(e[c.key]||0),0);else if(m==='treasury')s=(o.cost||0)/10000;else s=e[m]||0;
+    s=s*dir+Math.random()*2;if(s>bs){bs=s;best=i}});
+  return best;
+}
+function scheduleBots(){
+  BOTS.forEach((b,i)=>{
+    if(b.busy)return;b.busy=true;
+    setTimeout(async()=>{
+      try{
+        if(S.ended||!S.roomId)return;
+        const pc=await dbGet('played_cards',{room_id:S.roomId});
+        if(pc.filter(p=>p.player_id===b.id).length>=myCpp())return;
+        const card=await pickCardFor(b.id);if(!card)return;
+        await applyCard(card,card.type==='crisis'?botChoose(card,b.mission):null,b.id);
+      }catch(e){console.warn('bot',e)}
+      b.busy=false;
+      try{if(S.ended||!S.roomId)return;const pc=await dbGet('played_cards',{room_id:S.roomId});const n=id=>pc.filter(p=>p.player_id===id).length;if(n(b.id)<n(S.playerId))scheduleBots()}catch(e){}
+    },1300+i*(BOTS.length>3?900:1400)+Math.random()*700);
+  });
+}
+
+/* ═════ ROL YAZISI ═════ */
+function showRoleEnv(role){
+  const c=CITIES[S.selectedCity]||CITIES.karadut;
+  $('letter-city').textContent=`${c.name} Belediyesi`;
+  $('letter-name').textContent=S.playerName||'Oyuncu';
+  $('letter-date').textContent=new Date().toLocaleDateString('tr-TR');
+  $('seal-text').textContent=`${c.name.toLocaleUpperCase('tr-TR')} BELEDİYESİ • GİZLİDİR • KİŞİYE ÖZEL •`;
+  $('role-emoji').innerHTML=ICON[role.key];$('role-emoji').style.color=role.color;$('role-emoji').style.borderColor=role.color;
+  $('role-name').textContent=role.name;$('role-desc').textContent=role.desc;
+  $('env-svg').classList.remove('opened');$('role-reveal').classList.remove('show');$('seal-wrap').style.display='';
+  $('btn-to-mission').style.display='none';$('tap-hint').style.display='block';
+  goTo('s-env');
+}
+window.openRoleEnv=function(){
+  const seal=$('env-svg');if(seal.classList.contains('opened'))return;
+  seal.classList.add('opened');$('tap-hint').style.display='none';
+  setTimeout(()=>{$('role-reveal').classList.add('show');setTimeout(()=>{$('btn-to-mission').style.display='flex';$('seal-wrap').style.display='none'},450)},250);
+};
+$('btn-to-mission').onclick=()=>showMissionSelect();
+
+/* ═════ GİZLİ GÖREV ═════ */
+async function showMissionSelect(){
+  goTo('s-mission');
+  const all=await dbGet('secret_missions');
+  const taken=new Set((await dbGet('players',{room_id:S.roomId})).filter(p=>p.id!==S.playerId).map(p=>p.secret_mission_id).filter(Boolean));
+  const free=all.filter(m=>!taken.has(m.id));
+  S.pendingMissions=[...(free.length>=3?free:all)].sort(()=>Math.random()-.5).slice(0,3);
+  $('mission-envs').innerHTML=S.pendingMissions.map((m,i)=>`
+    <button type="button" class="m-env" id="menv-${i}" onclick="pickMission(${i})" aria-label="Dosya ${'ABC'[i]}">
+      <div class="m-env-card" id="mcard-${i}"><b>Dosya ${'ABC'[i]}</b><span>Gizli</span></div></button>`).join('');
+  $('mission-reveal').classList.remove('show');$('btn-accept-mission').style.display='none';
+}
+window.pickMission=function(idx){
+  document.querySelectorAll('.m-env').forEach((e,i)=>{e.classList.remove('selected');const c=$('mcard-'+i);c.classList.remove('opened');c.innerHTML=`<b>Dosya ${'ABC'[i]}</b><span>Gizli</span>`});
+  $('menv-'+idx).classList.add('selected');
+  const m=S.pendingMissions[idx];S.myMission=m;
+  const card=$('mcard-'+idx);card.classList.add('opened');card.innerHTML=`<b>${esc(m.title)}</b><span>Açık</span>`;
+  $('m-title').textContent=m.title;$('m-desc').textContent=m.description;$('m-win-txt').textContent=m.win_condition;
+  $('mission-reveal').classList.add('show');$('btn-accept-mission').style.display='flex';
+};
+$('btn-accept-mission').onclick=async()=>{
+  if(!S.myMission)return;
+  try{await dbPatch('players',{id:S.playerId},{secret_mission_id:S.myMission.id})}catch(e){}
+  saveSess();await enterGame();
+};
+
+/* ═════ OYUN ═════ */
+async function enterGame(){
+  goTo('s-game');
+  S.ended=false;S.endShown=false;S.gameState=null;
+  const room=(await dbGet('rooms',{id:S.roomId}))[0];
+  S.corruption=room?.corruption_enabled!==false;
+  if(room?.city)S.selectedCity=room.city;
+  const c=CITIES[S.selectedCity]||CITIES.karadut;
+  $('hdr-code').textContent=S.roomCode;
+  $('hdr-emoji').innerHTML=S.myRole?ICON[S.myRole.key]:'';$('hdr-emoji').style.color=S.myRole?.color||'';
+  $('hdr-role').textContent=S.myRole?.name||'—';
+  $('city-banner-lbl').textContent=c.name;$('antet-sheet').textContent='Pafta '+c.sheet;
+  document.querySelector('.susp-row').style.display=S.corruption?'grid':'none';
+  const{data:cards}=await sb.from('cards').select('*');
+  S.cards=cards||[];S.cardMap=Object.fromEntries(S.cards.map(x=>[x.id,x]));
+  await refreshGS();await refreshFeed();requestAnimationFrame(redrawVisible);
+  startRT(S.roomId,{players:()=>refreshGS(),gs:()=>refreshGS(),rooms:()=>onRoomChange(),played:()=>refreshFeed(),
+    resync:async()=>{if(S.ended)return;await refreshGS();await refreshFeed();await onRoomChange()},every:4000});
+  if(room?.status==='ended')showEnd();
+}
+async function onRoomChange(){const r=(await dbGet('rooms',{id:S.roomId}))[0];if(!r||r.status==='ended')showEnd()}
+async function refreshGS(){
+  const gs=(await dbGet('game_state',{room_id:S.roomId}))[0];
+  const prev=S.gameState;S.gameState=gs;renderGS(gs,prev);
+  const{data:pl}=await sb.from('players').select('*').eq('room_id',S.roomId).order('joined_at');
+  if(pl){S.players=pl;renderPlayers(pl)}
+}
+let flashT;
+function renderGS(gs,prev){
+  if(!gs)return;
+  const ov=overall(gs),sc=$('oc-score');
+  countTo(sc,prev?overall(prev):ov,ov);sc.style.color=ov>=60?C.park:ov>=45?C.ink:C.ticari;
+  $('oc-bars').innerHTML=COMFORT.map(c=>{
+    const v=gs[c.key],d=prev?v-prev[c.key]:0;
+    const sw=c.key==='transport'?'<div class="sw line"></div>':c.key==='social'?`<div class="sw" style="background:${C.konut}"></div>`:`<div class="sw" style="color:${c.color};border-color:${c.color}">${c.sym}</div>`;
+    return`<div class="lg${d?' bump':''}">${sw}<div class="nm">${c.label}${d?` <span class="fx ${d>0?'up':'down'}">${signed(d)}</span>`:''}</div><div class="track"><i style="width:${v}%;background:${v<40?`repeating-linear-gradient(135deg,${C.ticari} 0 4px,#E58B78 4px 7px)`:c.color}"></i></div><div class="v ${v<40?'low':''}">${v}</div></div>`;
+  }).join('');
+  $('budget-row').innerHTML=`<div><div class="lbl">Belediye kasası</div><div class="amt ${gs.treasury<0?'neg':''}">${money(gs.treasury)}</div></div>
+    <div><div class="lbl">İş insanının nakdi</div><div class="amt">${money(gs.businessman_cash)}</div></div>`;
+  const sv=gs.suspicion||0;
+  $('susp-b').innerHTML=Array.from({length:20},(_,i)=>`<i class="${i<Math.round(sv/5)?'on':''}"></i>`).join('');
+  $('susp-v').textContent=sv;
+  const cv=$('game-plan'),changed=new Set(prev?COMFORT.map(c=>c.key).filter(k=>gs[k]!==prev[k]):[]);
+  if(prev&&gs.treasury!==prev.treasury)changed.add('treasury');
+  drawPlan(cv,S.selectedCity,gs,{flash:changed});live(cv,S.selectedCity,gs);
+  if(prev){
+    COMFORT.forEach(c=>{const d=gs[c.key]-prev[c.key];if(d)floatAt('game-plan',c.key,signed(d),d>0)});
+    const dt=gs.treasury-prev.treasury;if(dt)floatAt('game-plan','treasury',(dt>0?'+':'−')+'₺'+Math.round(Math.abs(dt)/1000)+'b',dt>0);
+  }
+  clearTimeout(flashT);if(changed.size)flashT=setTimeout(()=>drawPlan(cv,S.selectedCity,S.gameState),1100);
+}
+function renderPlayers(pl){
+  const before=S._pids;S._pids=new Set(pl.map(p=>p.id));
+  if(before)[...before].filter(id=>!S._pids.has(id)).forEach(id=>{const p=(S._pnames||{})[id];if(p)toast(`${p} oyundan ayrıldı.`)});
+  S._pnames=Object.fromEntries(pl.map(p=>[p.id,p.name]));
+  if($('s-game').classList.contains('active'))renderRound();
+  $('pbar').innerHTML=pl.map(p=>{
+    const r=ROLES.find(x=>x.key===p.role),me=p.id===S.playerId;
+    return`<div class="pchip${me?' me':''}"><div class="ic" style="background:${r?.color||C.ink3}">${r?ICON[r.key]:esc(p.name[0])}</div><div><b>${esc(p.name)}</b><small>${esc(r?.name||'Rol bekleniyor')}</small></div></div>`;
+  }).join('');
+}
+
+/* ═════ KART MANTIĞI ═════ */
+function deltasFor(card,opt){
+  if(card.type==='crisis'){const o=(card.options||[])[opt];if(!o)return{};return{treasury:o.cost||0,...(o.effects||{})}}
+  return{treasury:card.budget_effect||0,...(card.stat_effects||{})};
+}
+function fxChips(eff){
+  const keys=FX_ORDER.filter(k=>eff&&eff[k]&&!(k==='suspicion'&&!S.corruption));
+  if(!keys.length)return'';
+  return`<span class="fx-chips">${keys.map(k=>{
+    const v=eff[k],isMoney=k==='businessman_cash',good=k==='suspicion'?v<0:v>0;
+    return`<span class="fx ${good?'up':'down'}">${METRIC[k]} ${isMoney?signedMoney(v):signed(v)}</span>`;
+  }).join('')}</span>`;
+}
+async function applyCard(card,opt,playerId){
+  // Etkiler veritabanında tek UPDATE ile uygulanır; aynı anda oynanan kartlar birbirini ezmez
+  const{error}=await sb.rpc('apply_card_effects',{p_room:S.roomId,p_delta:deltasFor(card,opt),p_corruption:!!S.corruption});
+  if(error)throw new Error(error.message);
+  await dbPost('played_cards',{room_id:S.roomId,card_id:card.id,chosen_option:opt,player_id:playerId});
+  await checkEnd();
+}
+async function checkEnd(){
+  const room=(await dbGet('rooms',{id:S.roomId}))[0];if(!room||room.status==='ended')return;
+  const gs=(await dbGet('game_state',{room_id:S.roomId}))[0];
+  const played=await dbGet('played_cards',{room_id:S.roomId});
+  const pl=await dbGet('players',{room_id:S.roomId});
+  const ids=new Set(pl.map(p=>p.id)),n=played.filter(p=>ids.has(p.player_id)).length;
+  if(n>=pl.length*cpp(pl.length)||pl.length<2||gs.treasury<0||(S.corruption&&gs.suspicion>=100))
+    await dbPatch('rooms',{id:S.roomId},{status:'ended'});
+}
+async function pickCardFor(playerId){
+  const played=await dbGet('played_cards',{room_id:S.roomId});
+  const cards=S.cards?.length?S.cards:(await sb.from('cards').select('*')).data||[];
+  const roomIds=new Set(played.map(p=>p.card_id)),mineIds=new Set(played.filter(p=>p.player_id===playerId).map(p=>p.card_id));
+  let pool=cards.filter(c=>!roomIds.has(c.id));
+  if(!pool.length)pool=cards.filter(c=>!mineIds.has(c.id));
+  if(!pool.length)pool=cards;
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+
+/* ═════ KARAR DEFTERİ ═════ */
+async function refreshFeed(){
+  const{data:pc}=await sb.from('played_cards').select('*').eq('room_id',S.roomId).order('played_at',{ascending:true});
+  if(!pc)return;S.played=pc;
+  const seen=S._seen;S._seen=new Set(pc.map(p=>p.id));
+  if(seen){const fresh=pc.filter(p=>!seen.has(p.id)&&p.player_id!==S.playerId);if(fresh.length)showTicker(fresh[fresh.length-1])}
+  const names=Object.fromEntries((S.players||[]).map(p=>[p.id,p]));
+  $('feed-count').textContent=pc.length?`${pc.length} karar`:'';
+  $('feed-list').innerHTML=pc.length?pc.map((p,i)=>{
+    const c=S.cardMap?.[p.card_id];if(!c)return'';
+    const me=p.player_id===S.playerId,nm=me?'Sen':esc(names[p.player_id]?.name||'Bir oyuncu');
+    const opt=c.type==='crisis'?(c.options||[])[p.chosen_option]:null;
+    const txt=c.type==='crisis'
+      ?`<b>${nm}</b>, ${esc(c.title)} krizinde <q>${esc(opt?.label||'karar vermedi')}</q> kararını verdi.`
+      :`<b>${nm}</b> bir olay açtı: ${esc(c.title)}.`;
+    return`<div class="fi ${c.type}"><div class="no">Karar<b>${i+1}</b></div><div class="tx">${txt}${fxChips(deltasFor(c,p.chosen_option))}</div></div>`;
+  }).reverse().join(''):'<div class="feed-empty">Henüz karar alınmadı. İlk kartı sen çek.</div>';
+  renderRound();
+}
+function renderRound(){
+  const k=myCpp(),ids=new Set((S.players||[]).map(p=>p.id));
+  const pc=S.played||[],mine=pc.filter(p=>p.player_id===S.playerId).length,total=(S.players?.length||1)*k,done=pc.filter(p=>ids.has(p.player_id)).length;
+  $('round-lbl').innerHTML=`Kartların <b>${mine}/${k}</b>, meclis <b>${done}/${total}</b>`;
+  $('round-pips').innerHTML=Array.from({length:k},(_,i)=>`<i class="round-pip${i<mine?' done':''}"></i>`).join('');
+  const out=mine>=k;$('btn-draw').disabled=out||S.ended;
+  $('draw-txt').textContent=out?'Kartların bitti, diğerleri oynuyor':'Gündemden kart çek';
+}
+
+/* ═════ KART SAYFASI ═════ */
+$('btn-draw').onclick=async()=>{
+  try{
+    const played=await dbGet('played_cards',{room_id:S.roomId,player_id:S.playerId});
+    if(played.length>=myCpp()){toast('Kartların bitti. Diğer oyuncular bekleniyor.');return}
+    const card=await pickCardFor(S.playerId);
+    if(!card){toast('Destede kart kalmadı.','error');return}
+    showCardModal(card);
+  }catch(e){toast('Kart çekilemedi: '+e.message,'error')}
+};
+function showCardModal(card){
+  const modal=$('card-modal'),cont=$('card-content');
+  modal.className='card-modal '+card.type;S.selectedOpt=null;window._card=card;
+  $('stamp').classList.remove('hit');modal.scrollTop=0;
+  const no=(S.played?.length||0)+1;
+  if(card.type==='crisis'){
+    const opts=card.options||[];
+    cont.innerHTML=`<div class="card-head"><div class="grab"></div><div class="card-kind"><span>Kriz, karar bekliyor</span><span>Gündem maddesi ${no}</span></div>
+      <h3 class="card-title" id="card-title">${esc(card.title)}</h3><p class="card-desc">${esc(card.description)}</p></div>
+      <div class="card-body"><div class="opts">${opts.map((o,i)=>`<button type="button" class="c-opt" onclick="pickOpt(${i},this)">
+        <span class="lt">${'ABC'[i]||i+1}</span>
+        <span><span class="ol">${esc(o.label)}</span>${o.desc?`<span class="od" style="display:block">${esc(o.desc)}</span>`:''}${fxChips(o.effects)}</span>
+        <span class="oc ${o.cost<0?'neg':o.cost>0?'pos':''}">${o.cost?signedMoney(o.cost):'₺0'}</span></button>`).join('')}</div>
+      <button class="btn btn-ink" id="confirm-btn" type="button" onclick="confirmCard()" disabled>Bir seçenek işaretle</button></div>`;
+  }else{
+    const txt=card.effects||{},num=card.stat_effects||{},be=card.budget_effect||0;
+    const keys=[...new Set([...Object.keys(txt),...Object.keys(num)])].filter(k=>!(k==='suspicion'&&!S.corruption));
+    cont.innerHTML=`<div class="card-head"><div class="grab"></div><div class="card-kind"><span>Olay, kendiliğinden işler</span><span>Gündem maddesi ${no}</span></div>
+      <h3 class="card-title" id="card-title">${esc(card.title)}</h3><p class="card-desc">${esc(card.description)}</p></div>
+      <div class="card-body"><div class="ev-rows">${keys.map(k=>{const v=num[k],good=k==='suspicion'?v<0:v>0;
+        return`<div class="ev-row"><div class="k">${esc(METRIC[k]||k)}</div><div class="t">${esc(txt[k]||'')}</div><div class="d ${v?(good?'up':'down'):''}">${v?(k==='businessman_cash'?signedMoney(v):signed(v)):''}</div></div>`}).join('')}</div>
+      ${be?`<div class="budget-fx ${be<0?'neg':''}"><span>Belediye kasasına etkisi</span><b>${signedMoney(be)}</b></div>`:''}
+      <button class="btn btn-ink" type="button" style="background:var(--olay)" onclick="confirmCard()">Olayı deftere işle</button></div>`;
+  }
+  $('card-overlay').classList.add('open');sfx('draw');
+}
+window.pickOpt=function(i,el){
+  sfx('click');document.querySelectorAll('.c-opt').forEach(o=>o.classList.remove('selected'));el.classList.add('selected');S.selectedOpt=i;
+  const b=$('confirm-btn');b.disabled=false;b.textContent=`${'ABC'[i]} seçeneğiyle karar ver`;
+};
+window.confirmCard=async function(){
+  const card=window._card;if(!card)return;
+  if(card.type==='crisis'&&S.selectedOpt===null)return;
+  const opt=card.type==='crisis'?S.selectedOpt:null;window._card=null;
+  const st=$('stamp'),col=card.type==='crisis'?'#C9560F':C.kamu;
+  $('stamp-main').textContent=card.type==='crisis'?'KARAR VERİLDİ':'DEFTERE İŞLENDİ';
+  $('stamp-sub').textContent=`Gündem maddesi ${(S.played?.length||0)+1}`;
+  st.style.borderColor=col;st.style.color=col;
+  st.style.top=($('card-modal').scrollTop+$('card-modal').clientHeight*.42)+'px';
+  st.classList.add('hit');setTimeout(()=>sfx('stamp'),180);
+  try{
+    const apply=applyCard(card,opt,S.playerId);
+    await wait(reduceMotion()?150:800);closeCard();await apply;
+    await refreshGS();await refreshFeed();
+    if(DEMO)scheduleBots();
+  }catch(e){closeCard();toast('Karar kaydedilemedi: '+e.message,'error')}
+};
+function closeCard(){$('card-overlay').classList.remove('open')}
+window.closeCardIfOutside=function(e){if(e.target.id==='card-overlay'&&!$('stamp').classList.contains('hit'))closeCard()};
+
+/* ═════ GÖREV PENCERESİ ═════ */
+function metricValue(key,gs){return key==='overall'?overall(gs):gs[key]}
+function missionWon(m,gs){if(!m)return false;const v=metricValue(m.target_metric,gs);return m.target_direction==='above'?v>m.target_value:v<m.target_value}
+window.showMissionModal=function(){
+  if(!S.myMission){toast('Bu oyunda gizli görev seçmedin.','error');return}
+  const m=S.myMission;$('mm-title').textContent=m.title;$('mm-desc').textContent=m.description;$('mm-win-txt').textContent=m.win_condition;
+  if(S.gameState){const v=metricValue(m.target_metric,S.gameState),ok=missionWon(m,S.gameState);
+    $('mm-now').innerHTML=`Şu anki değer: <b class="num">${m.target_metric==='treasury'?money(v):v}</b>. ${ok?'Oyun şimdi bitse görevini başarırdın.':'Henüz hedefte değilsin.'}`}
+  $('mission-overlay').classList.add('open');
+};
+window.closeMissionOverlay=function(e){if(!e||e.target.id==='mission-overlay')$('mission-overlay').classList.remove('open')};
+
+/* ═════ DÖNEM SONU ═════ */
+async function showEnd(){
+  if(S.endShown)return;S.endShown=true;S.ended=true;closeCard();$('mission-overlay').classList.remove('open');
+  const gs=(await dbGet('game_state',{room_id:S.roomId}))[0];S.gameState=gs;
+  const{data:pl}=await sb.from('players').select('*').eq('room_id',S.roomId).order('joined_at');
+  const missions=await dbGet('secret_missions'),played=await dbGet('played_cards',{room_id:S.roomId});
+  const city=CITIES[S.selectedCity]||CITIES.karadut,total=(pl?.length||1)*cpp(pl?.length||2),ov=overall(gs),ov0=overall(city.start);
+  let reason='Dönem sona erdi';
+  if(gs.treasury<0)reason='Belediye iflas etti';
+  else if(S.corruption&&gs.suspicion>=100)reason='Savcılık soruşturma başlattı';
+  else if(played.length<total)reason='Oyun erken bitti';
+  const res=(pl||[]).map(p=>{const m=missions.find(x=>x.id===p.secret_mission_id);return{p,m,won:missionWon(m,gs)}});
+  const me=res.find(r=>r.p.id===S.playerId),winners=res.filter(r=>r.won);
+  $('end-reason').textContent=reason;
+  $('end-title').textContent=me?.won?'Görevini başardın':'Görevin tutmadı';
+  $('end-sub').textContent=`${city.name} ${played.length} kararla yönetildi. `+(winners.length?`Gizli görevini tamamlayan: ${winners.map(w=>w.p.id===S.playerId?'sen':w.p.name).join(', ')}.`:'Kimse gizli görevini tamamlayamadı.');
+  $('end-score').textContent=ov;$('end-score').style.color=ov>=60?C.park:ov>=45?C.ink:C.ticari;
+  const row=(l,a,b,isMoney,cls='')=>{const d=b-a,dc=d>0?'up':d<0?'down':'n';return`<tr class="${cls}"><td>${l}</td><td class="n">${isMoney?money(a):a}</td><td class="n">${isMoney?money(b):b}</td><td class="${dc}">${d?(isMoney?signedMoney(d):signed(d)):'±0'}</td></tr>`};
+  $('end-metrics').innerHTML=`<thead><tr><th>Dönem raporu</th><th class="n">Başta</th><th class="n">Sonda</th><th class="n">Fark</th></tr></thead><tbody>`+
+    row('Halk konforu',ov0,ov,false,'total')+COMFORT.map(c=>row(c.label,city.start[c.key],gs[c.key])).join('')+
+    row('Belediye kasası',city.start.treasury,gs.treasury,true)+(S.corruption?row('Şüphe',0,gs.suspicion||0):'')+'</tbody>';
+  $('end-players').innerHTML=`<div class="sheet-h"><h3>Gizli görevler açıldı</h3></div>`+res.map(({p,m,won})=>{
+    const r=ROLES.find(x=>x.key===p.role);
+    return`<div class="ep ${won?'win':'lose'}"><div class="nm">${esc(p.name)}${p.id===S.playerId?' (sen)':''}<small>${esc(r?.name||'')}</small></div>
+      <div class="res">${won?'BAŞARDI':'BAŞARAMADI'}</div><div class="ms"><b>${esc(m?.title||'Görev seçmedi')}</b>. ${esc(m?.win_condition||'')}</div></div>`;
+  }).join('');
+  stopRT();
+  clearSess();goTo('s-end');sfx('end');requestAnimationFrame(()=>drawPlan($('end-plan'),S.selectedCity,gs));
+}
+$('btn-end-again').onclick=()=>{
+  if(DEMO){sb=createMockClient(DEMO_SEED);BOTS=[]}
+  Object.assign(S,{playerId:null,roomId:null,roomCode:'',isHost:false,myRole:null,gameState:null,players:[],selectedOpt:null,myMission:null,pendingMissions:[],played:[],ended:false,endShown:false});
+  goTo(DEMO?'s-city':'s-mode');
+};
+
+/* ═════ AÇILIŞ ═════ */
+window.addEventListener('DOMContentLoaded',async()=>{
+  renderCities();
+  if(FORCE_DEMO||/[?&]demo\b/.test(location.search)||(!sb&&DEMO_SEED)){
+    enterDemo();$('btn-demo').style.display='none';
+    $('demo-note').textContent='Demo sürümü: odana bot oyuncular katılır ve sen oynadıkça onlar da kart oynar.';
+  }
+  const ok=await restoreSess();
+  initSettings();
+  if(!ok){goTo('s-name');requestAnimationFrame(()=>animatePlan($('hero-plan'),'karadut',CITIES.karadut.start,1600))}
+});
+</script>
+</body>
+</html>

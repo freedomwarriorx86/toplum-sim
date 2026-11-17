@@ -1,0 +1,48 @@
+[
+  {"type":"crisis","title":"Fabrika Atık Skandalı","description":"Organize sanayideki bir fabrikanın geceleri dereye kimyasal atık boşalttığı ortaya çıktı. Mahalleli ölü balık fotoğraflarını paylaşıyor.","options":[
+    {"label":"Fabrikayı mühürle","icon":"🔒","cost":-20000,"desc":"Üretim durur, sanayici zarar eder.","effects":{"health":6,"social":2,"businessman_cash":-120000}},
+    {"label":"Ağır para cezası kes","icon":"🧾","cost":40000,"desc":"Kasaya para girer, atık sorunu sürer.","effects":{"health":2}},
+    {"label":"Bağışı al, sessiz kal","icon":"🤫","cost":90000,"desc":"Fabrika belediyeye 'bağış' yapar.","effects":{"health":-6,"suspicion":15,"businessman_cash":-40000}}]},
+  {"type":"crisis","title":"Toplu Taşıma Grevi","description":"Belediye otobüsü şoförleri üç aydır gecikmeli ödenen maaşlar için kontak kapattı. Sabah duraklarda uzun kuyruklar var.","options":[
+    {"label":"Maaş zammı ver","icon":"💸","cost":-70000,"effects":{"transport":5,"social":2}},
+    {"label":"Hatları özel minibüslere ihale et","icon":"🚐","cost":-20000,"desc":"İhaleyi tanıdık bir kooperatif alır.","effects":{"transport":2,"suspicion":10,"businessman_cash":100000}},
+    {"label":"Grevin bitmesini bekle","icon":"⏳","cost":0,"effects":{"transport":-7,"social":-4}}]},
+  {"type":"crisis","title":"Grip Salgını Uyarısı","description":"Acil servislere başvuru bir haftada iki katına çıktı. İl sağlık müdürlüğü okullarda vaka artışı bildiriyor.","options":[
+    {"label":"Ücretsiz aşı kampanyası","icon":"💉","cost":-90000,"effects":{"health":9,"social":2}},
+    {"label":"Okulları bir hafta kapat","icon":"🏫","cost":-10000,"effects":{"health":4,"education":-5}},
+    {"label":"Özel hastaneyle protokol yap","icon":"🏥","cost":-40000,"desc":"Hastanenin ortağı iş insanı.","effects":{"health":5,"suspicion":8,"businessman_cash":60000}}]},
+  {"type":"crisis","title":"Hırsızlık Dalgası","description":"Çarşıda bir ayda on iki dükkan soyuldu. Esnaf odası belediye önünde kepenk kapatma eylemi yapıyor.","options":[
+    {"label":"Kamera sistemi kur","icon":"📹","cost":-60000,"effects":{"security":7}},
+    {"label":"Özel güvenlik şirketiyle anlaş","icon":"🕴️","cost":-45000,"effects":{"security":5,"suspicion":10,"businessman_cash":70000}},
+    {"label":"Bekçi ve mahalle gönüllüleri","icon":"🔦","cost":-15000,"effects":{"security":3,"social":2}}]},
+  {"type":"crisis","title":"Kaçak AVM İnşaatı","description":"Ana caddedeki yeşil alanda ruhsatsız bir alışveriş merkezi yükseliyor. Müteahhit 'her şey yasal olacak' diyor.","options":[
+    {"label":"İnşaatı yık","icon":"🚧","cost":-30000,"effects":{"social":3,"security":2,"businessman_cash":-200000}},
+    {"label":"İmar affı çıkar","icon":"📝","cost":60000,"desc":"Harç geliri gelir, trafik artar.","effects":{"transport":-3,"suspicion":15,"businessman_cash":150000}},
+    {"label":"Ceza kes, devam etsin","icon":"⚖️","cost":35000,"effects":{"social":-2,"suspicion":5}}]},
+  {"type":"crisis","title":"Kuraklık ve Su Kesintisi","description":"Baraj doluluk oranı yüzde 18'e düştü. Yüksek mahallelere iki gündür su gitmiyor.","options":[
+    {"label":"Yeni su deposu yap","icon":"🛢️","cost":-110000,"effects":{"health":5,"social":4}},
+    {"label":"Tasarruf kampanyası başlat","icon":"📣","cost":-10000,"effects":{"health":1,"social":-2}},
+    {"label":"Tanker suyunu özel firmaya ver","icon":"🚚","cost":-50000,"effects":{"health":3,"suspicion":8,"businessman_cash":90000}}]},
+  {"type":"crisis","title":"Öğretmen Açığı","description":"Eylül'de dört okulda matematik ve fen öğretmeni yok. Veliler dilekçe topluyor.","options":[
+    {"label":"Ücretli öğretmen görevlendir","icon":"👩‍🏫","cost":-45000,"effects":{"education":6}},
+    {"label":"Sınıfları birleştir","icon":"🪑","cost":0,"effects":{"education":-4,"social":-2}},
+    {"label":"Özel dershaneyle protokol","icon":"📚","cost":-25000,"effects":{"education":3,"suspicion":6,"businessman_cash":50000}}]},
+  {"type":"crisis","title":"Meydanda Gençlik Protestosu","description":"İşsizliğe tepki gösteren yüzlerce genç belediye meydanında oturma eylemi başlattı.","options":[
+    {"label":"Gençlik merkezi sözü ver","icon":"🏟️","cost":-55000,"effects":{"social":7,"education":2}},
+    {"label":"Polisle dağıt","icon":"🚓","cost":-5000,"effects":{"security":3,"social":-8}},
+    {"label":"Diyalog masası kur","icon":"🤝","cost":-10000,"effects":{"social":3}}]},
+  {"type":"crisis","title":"Köprüde Çökme Riski","description":"Dere üzerindeki 1974 yapımı köprünün ayaklarında çatlak bulundu. Mühendisler acil önlem istiyor.","options":[
+    {"label":"Acil onarım yap","icon":"🏗️","cost":-100000,"effects":{"transport":4,"security":3}},
+    {"label":"Köprüyü trafiğe kapat","icon":"⛔","cost":-10000,"effects":{"transport":-8,"security":2}},
+    {"label":"Ucuz yama ihalesi aç","icon":"🩹","cost":-30000,"effects":{"transport":2,"security":-4,"suspicion":10,"businessman_cash":60000}}]},
+
+  {"type":"event","title":"Basında Yolsuzluk Haberi","description":"Yerel gazete belediye ihaleleriyle ilgili 'Kim kazandı, kim kazandırdı?' başlıklı bir dosya yayımladı.","budget_effect":0,"effects":{"social":"Halkın yönetime güveni sarsıldı.","suspicion":"Savcılık ihale dosyalarını istedi."},"stat_effects":{"social":-3,"suspicion":12}},
+  {"type":"event","title":"Bağ Bozumu Festivali","description":"Üç gün süren festivale çevre ilçelerden de ziyaretçi geldi. Organizasyon belediyeye pahalıya patladı.","budget_effect":-20000,"effects":{"social":"Mahalleler arasında kaynaşma arttı.","economy":"Esnaf iyi kazandı ama belediye harcadı."},"stat_effects":{"social":5}},
+  {"type":"event","title":"Bakanlık Hibesi","description":"İlçenin dijital eğitim projesi bakanlık hibesi kazandı.","budget_effect":120000,"effects":{"education":"Okullara akıllı tahta ve tablet geliyor.","economy":"Belediye kasasına dış kaynak girdi."},"stat_effects":{"education":2}},
+  {"type":"event","title":"Tekstil Fabrikası Kapandı","description":"İlçenin en büyük işvereni üretimi yurt dışına taşıdı. 400 kişi işsiz kaldı.","budget_effect":-30000,"effects":{"social":"İşsizlik mahallelerde gerginlik yarattı.","health":"Fabrika bacası sustu, hava biraz temizlendi.","economy":"Vergi geliri düştü."},"stat_effects":{"social":-5,"health":2,"businessman_cash":-100000}},
+  {"type":"event","title":"Deprem Tatbikatı","description":"AFAD ile birlikte tüm okullarda ve hastanede tahliye tatbikatı yapıldı.","budget_effect":-10000,"effects":{"security":"Toplanma alanları ve ekipler hazır."},"stat_effects":{"security":4}},
+  {"type":"event","title":"Bisiklet Yolu Bağışı","description":"Bir hayırsever sahil boyunca 6 km bisiklet yolu yaptırdı.","budget_effect":0,"effects":{"transport":"Kısa mesafelerde araç trafiği azaldı.","health":"Sabahları sahil sporcularla doldu."},"stat_effects":{"transport":3,"health":2}},
+  {"type":"event","title":"Vergi Denetimi","description":"Maliye müfettişleri ilçedeki büyük şirketlerin defterlerini inceledi.","budget_effect":40000,"effects":{"economy":"Geçmiş vergi borçları tahsil edildi.","suspicion":"Kayıtlar temiz çıktı, dedikodular azaldı."},"stat_effects":{"suspicion":-10,"businessman_cash":-60000}},
+  {"type":"event","title":"Yeni Aile Sağlığı Merkezi","description":"Uzun süredir beklenen aile sağlığı merkezi Yeşiltepe Mahallesi'nde açıldı.","budget_effect":-30000,"effects":{"health":"Randevu bekleme süresi yarıya indi."},"stat_effects":{"health":6}},
+  {"type":"event","title":"Sosyal Medyada Viral Video","description":"Bir zabıta memurunun yaşlı bir teyzenin pazar arabasını taşıdığı video milyonlarca kez izlendi.","budget_effect":0,"effects":{"social":"Belediyeye sempati arttı.","suspicion":"Gündem değişti, eleştiriler sustu."},"stat_effects":{"social":4,"suspicion":-5}}
+]
