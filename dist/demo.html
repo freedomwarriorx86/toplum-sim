@@ -73,6 +73,7 @@ body.is-demo .conn{display:none}
 body.in-room .fab-settings{display:inline-flex}
 body.in-room #s-game.active~.fab-settings,body.on-game .fab-settings{display:none}
 .settings-modal{border-top-color:var(--ink)!important}
+[hidden]{display:none!important}
 body.in-room .screen.narrow{padding-top:62px}
 .set-title{font-family:var(--display);font-weight:800;font-stretch:84%;font-size:30px;line-height:1}
 .set-room{display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center;margin-top:14px;padding:14px;border:1.5px solid var(--ink);border-radius:var(--r);background:#fff}
@@ -637,6 +638,7 @@ body.is-demo .demo-badge{display:inline-block}
   <button class="btn btn-ink" id="btn-accept-mission" type="button" style="display:none;margin-top:16px">Bu görevi al</button>
 </main>
 
+
 <!-- OYUN -->
 <main class="screen wide" id="s-game">
   <header class="game-hdr">
@@ -765,6 +767,9 @@ const DEMO_SEED=/*SEED*/{"cards":[{"id":"d272f5da-6a5f-447f-be66-bc8a858945bf","
 let DEMO=false;
 let sb=null;
 try{if(!FORCE_DEMO&&window.supabase)sb=supabase.createClient(SURL,SKEY);}catch(e){}
+const SB_REAL=sb;
+/* Botlar demoda ve geliştirici test masasında oynar */
+const useBots=()=>DEMO||!!S.dev;
 
 /* ═════ VERİ ═════ */
 const C={saglik:'#B03A63',paper:'#E8ECE6',sheet:'#F7F9F5',ink:'#16241F',ink3:'#6F7D76',rule:'#C3CDC5',
@@ -1233,12 +1238,12 @@ $('btn-create').onclick=async()=>{
     S.playerId=player.id;
     await dbPost('game_state',{room_id:room.id,...CITIES[S.selectedCity].start,suspicion:0});
     saveSess();await enterWait();
-    if(DEMO)spawnBots(room.id,lobbyMaxPlayers-1);
+    if(useBots())spawnBots(room.id,lobbyMaxPlayers-1);
   }catch(e){toast('Oda kurulamadı: '+e.message,'error')}
 };
 $('btn-join').onclick=async()=>{
   const code=$('input-code').value.trim().toUpperCase();
-  if(code.length!==6){toast('Oda kodu 6 karakter olmalı.','error');return}
+    if(code.length!==6){toast('Oda kodu 6 karakter olmalı.','error');return}
   try{
     const{data:rooms,error}=await sb.from('rooms').select('*').eq('code',code).eq('status','waiting');
     if(error)throw new Error(error.message);
@@ -1253,11 +1258,11 @@ $('btn-join').onclick=async()=>{
 };
 /* Odadan / oyundan çık. Bekleme odasında kurucu çıkarsa oda kapanır; oyunda 2'den az kişi kalırsa oyun biter. */
 window.leaveRoom=async function(){
-  const roomId=S.roomId,playerId=S.playerId,wasHost=S.isHost;
+  const roomId=S.roomId,playerId=S.playerId,wasHost=S.isHost,wasDev=!!S.dev;
   stopRT();BOTS=[];closeSettings();closeCard();$('mission-overlay').classList.remove('open');
   try{
     if(playerId)await sb.from('players').delete().eq('id',playerId);
-    if(roomId){
+        if(roomId){
       const room=(await dbGet('rooms',{id:roomId}))[0],rest=await dbGet('players',{room_id:roomId});
       if(room&&room.status!=='ended'&&(DEMO||(room.status==='waiting'&&wasHost)||(room.status!=='waiting'&&rest.length<2)))
         await dbPatch('rooms',{id:roomId},{status:'ended'});
@@ -1266,9 +1271,10 @@ window.leaveRoom=async function(){
   if(DEMO)sb=createMockClient(DEMO_SEED);
   clearSess();
   Object.assign(S,{playerId:null,roomId:null,roomCode:'',isHost:false,myRole:null,gameState:null,players:[],selectedOpt:null,myMission:null,pendingMissions:[],played:[],ended:false,endShown:false,_seen:null,_pids:null});
-  goTo(DEMO?'s-city':'s-mode');toast('Oyundan çıktın.');
+    goTo(DEMO?'s-city':'s-mode');toast('Oyundan çıktın.');
 };
 window.cancelRoom=window.leaveRoom;
+
 
 /* ═════ AYARLAR ═════ */
 function setSwitch(id,on){$(id).setAttribute('aria-checked',String(!!on))}
@@ -1340,7 +1346,7 @@ $('btn-start').onclick=async()=>{
     for(const r of ROLES){if(pool.length>=pl.length)break;if(!pool.includes(r.key))pool.push(r.key)}
     pool=[...pool].sort(()=>Math.random()-.5);
     for(let i=0;i<pl.length;i++)await dbPatch('players',{id:pl[i].id},{role:pool[i%pool.length]});
-    if(DEMO)await assignBotMissions();
+    if(useBots())await assignBotMissions();
     await dbPatch('rooms',{id:S.roomId},{status:'playing'});
     await loadMyRole();
   }catch(e){toast('Oyun başlatılamadı: '+e.message,'error')}
@@ -1464,7 +1470,7 @@ async function enterGame(){
   startRT(S.roomId,{players:()=>refreshGS(),gs:()=>refreshGS(),rooms:()=>onRoomChange(),played:()=>refreshFeed(),
     resync:async()=>{if(S.ended)return;await refreshGS();await refreshFeed();await onRoomChange()},every:4000});
   if(room?.status==='ended')showEnd();
-}
+  }
 async function onRoomChange(){const r=(await dbGet('rooms',{id:S.roomId}))[0];if(!r||r.status==='ended')showEnd()}
 async function refreshGS(){
   const gs=(await dbGet('game_state',{room_id:S.roomId}))[0];
@@ -1628,7 +1634,7 @@ window.confirmCard=async function(){
     const apply=applyCard(card,opt,S.playerId);
     await wait(reduceMotion()?150:800);closeCard();await apply;
     await refreshGS();await refreshFeed();
-    if(DEMO)scheduleBots();
+    if(useBots())scheduleBots();
   }catch(e){closeCard();toast('Karar kaydedilemedi: '+e.message,'error')}
 };
 function closeCard(){$('card-overlay').classList.remove('open')}
@@ -1676,7 +1682,7 @@ async function showEnd(){
   clearSess();goTo('s-end');sfx('end');requestAnimationFrame(()=>drawPlan($('end-plan'),S.selectedCity,gs));
 }
 $('btn-end-again').onclick=()=>{
-  if(DEMO){sb=createMockClient(DEMO_SEED);BOTS=[]}
+    if(DEMO){sb=createMockClient(DEMO_SEED);BOTS=[]}
   Object.assign(S,{playerId:null,roomId:null,roomCode:'',isHost:false,myRole:null,gameState:null,players:[],selectedOpt:null,myMission:null,pendingMissions:[],played:[],ended:false,endShown:false});
   goTo(DEMO?'s-city':'s-mode');
 };

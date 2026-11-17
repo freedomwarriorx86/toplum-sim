@@ -78,6 +78,25 @@ body.is-demo .conn{display:none}
 body.in-room .fab-settings{display:inline-flex}
 body.in-room #s-game.active~.fab-settings,body.on-game .fab-settings{display:none}
 .settings-modal{border-top-color:var(--ink)!important}
+[hidden]{display:none!important}
+/*DEV-START*/
+.dev-tag{font-size:12px;font-weight:700;padding:3px 8px;border-radius:3px;background:var(--sanayi);color:#fff}
+.dev-form{display:flex;flex-direction:column;gap:16px;margin-top:18px}
+.dev-seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;border:1.5px solid var(--ink);border-radius:var(--r);overflow:hidden}
+.dev-seg button{padding:11px 4px;font-weight:700;font-size:14px;border-right:1px solid var(--rule)}
+.dev-seg button:last-child{border-right:0}
+.dev-seg button.active{background:var(--sanayi);color:#fff}
+select.input{appearance:auto;font-size:16px}
+.devbar{position:fixed;z-index:90;left:calc(12px + env(safe-area-inset-left,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));
+  max-width:min(360px,calc(100% - 24px));background:var(--ink);color:var(--sheet);border-radius:var(--r);box-shadow:0 6px 24px rgba(0,0,0,.25);font-size:13px}
+.devbar>button{display:block;width:100%;padding:8px 12px;font-weight:800;text-align:left;color:#C9B8F2}
+.devbar-body{display:none;flex-wrap:wrap;gap:6px;padding:0 10px 10px}
+.devbar.open .devbar-body{display:flex}
+.devbar-body select{flex:1 1 100%;min-width:0;padding:6px;border-radius:4px;border:0;font:inherit;color:var(--ink)}
+.devbar-body button{padding:6px 9px;border-radius:4px;background:rgba(255,255,255,.12);font-weight:700}
+.devbar-body button:hover{background:rgba(255,255,255,.22)}
+body.is-dev .demo-badge{display:inline-block;background:var(--sanayi);color:#fff}
+/*DEV-END*/
 body.in-room .screen.narrow{padding-top:62px}
 .set-title{font-family:var(--display);font-weight:800;font-stretch:84%;font-size:30px;line-height:1}
 .set-room{display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center;margin-top:14px;padding:14px;border:1.5px solid var(--ink);border-radius:var(--r);background:#fff}
@@ -644,6 +663,42 @@ body.is-demo .demo-badge{display:inline-block}
   <button class="btn btn-ink" id="btn-accept-mission" type="button" style="display:none;margin-top:16px">Bu görevi al</button>
 </main>
 
+<!--DEV-START-->
+<main class="screen narrow" id="s-dev">
+  <div class="topbar">
+    <button class="back" type="button" onclick="goTo('s-mode')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>Çık</button>
+    <span class="dev-tag">Geliştirici modu</span>
+  </div>
+  <h2 class="h">Test masası</h2>
+  <p class="small" style="margin-top:6px">Botlarla tek başına oyna. Bu ekran yalnızca geliştirme sürümünde var; yayından önce <b>build.py --prod</b> ile kaldırılır.</p>
+  <div class="dev-form">
+    <div class="seg-group"><div class="lbl">Veritabanı</div><div class="dev-seg" id="dev-db"></div><p class="small" id="dev-db-note"></p></div>
+    <div class="seg-group"><div class="lbl">Şehir</div><div class="dev-seg" id="dev-city"></div></div>
+    <div class="seg-group"><div class="lbl">Oyuncu sayısı (sen + botlar)</div><div class="dev-seg" id="dev-count"></div></div>
+    <div class="field"><label for="dev-role">Rolün</label><select class="input" id="dev-role"></select></div>
+    <div class="field"><label for="dev-mission">Gizli görevin</label><select class="input" id="dev-mission"></select></div>
+    <div class="seg-group"><div class="lbl">Yolsuzluk şüphesi</div><div class="dev-seg" id="dev-cor"></div></div>
+    <div class="stack" style="margin-top:4px">
+      <button class="btn btn-ink" type="button" onclick="devStart(true)">Doğrudan oyuna başla</button>
+      <button class="btn btn-line" type="button" onclick="devStart(false)">Baştan oyna: bekleme odası, rol yazısı ve görev seçimi</button>
+    </div>
+  </div>
+</main>
+<div class="devbar" id="devbar" hidden>
+  <button type="button" onclick="this.parentElement.classList.toggle('open')">DEV araçları</button>
+  <div class="devbar-body">
+    <select id="dev-card" aria-label="Çekilecek kart"></select>
+    <button type="button" onclick="devDraw()">Bu kartı çek</button>
+    <button type="button" onclick="devBump(10)">Metrikler +10</button>
+    <button type="button" onclick="devBump(-10)">Metrikler −10</button>
+    <button type="button" onclick="devSusp(20)">Şüphe +20</button>
+    <button type="button" onclick="devMoney(-200000)">Kasa −₺200 bin</button>
+    <button type="button" onclick="scheduleBots()">Botlar oynasın</button>
+    <button type="button" onclick="devEnd()">Oyunu bitir</button>
+  </div>
+</div>
+<!--DEV-END-->
+
 <!-- OYUN -->
 <main class="screen wide" id="s-game">
   <header class="game-hdr">
@@ -773,6 +828,9 @@ const DEMO_SEED=/*SEED*/{"cards":[{"id":"d272f5da-6a5f-447f-be66-bc8a858945bf","
 let DEMO=false;
 let sb=null;
 try{if(!FORCE_DEMO&&window.supabase)sb=supabase.createClient(SURL,SKEY);}catch(e){}
+const SB_REAL=sb;
+/* Botlar demoda ve geliştirici test masasında oynar */
+const useBots=()=>DEMO||!!S.dev;
 
 /* ═════ VERİ ═════ */
 const C={saglik:'#B03A63',paper:'#E8ECE6',sheet:'#F7F9F5',ink:'#16241F',ink3:'#6F7D76',rule:'#C3CDC5',
@@ -1241,11 +1299,12 @@ $('btn-create').onclick=async()=>{
     S.playerId=player.id;
     await dbPost('game_state',{room_id:room.id,...CITIES[S.selectedCity].start,suspicion:0});
     saveSess();await enterWait();
-    if(DEMO)spawnBots(room.id,lobbyMaxPlayers-1);
+    if(useBots())spawnBots(room.id,lobbyMaxPlayers-1);
   }catch(e){toast('Oda kurulamadı: '+e.message,'error')}
 };
 $('btn-join').onclick=async()=>{
   const code=$('input-code').value.trim().toUpperCase();
+  /*DEV-START*/if(code===DEV_CODE){$('input-code').value='';openDev();return}/*DEV-END*/
   if(code.length!==6){toast('Oda kodu 6 karakter olmalı.','error');return}
   try{
     const{data:rooms,error}=await sb.from('rooms').select('*').eq('code',code).eq('status','waiting');
@@ -1261,10 +1320,11 @@ $('btn-join').onclick=async()=>{
 };
 /* Odadan / oyundan çık. Bekleme odasında kurucu çıkarsa oda kapanır; oyunda 2'den az kişi kalırsa oyun biter. */
 window.leaveRoom=async function(){
-  const roomId=S.roomId,playerId=S.playerId,wasHost=S.isHost;
+  const roomId=S.roomId,playerId=S.playerId,wasHost=S.isHost,wasDev=!!S.dev;
   stopRT();BOTS=[];closeSettings();closeCard();$('mission-overlay').classList.remove('open');
   try{
     if(playerId)await sb.from('players').delete().eq('id',playerId);
+    /*DEV-START*/if(wasDev&&roomId)await sb.from('players').delete().eq('room_id',roomId);/*DEV-END*/
     if(roomId){
       const room=(await dbGet('rooms',{id:roomId}))[0],rest=await dbGet('players',{room_id:roomId});
       if(room&&room.status!=='ended'&&(DEMO||(room.status==='waiting'&&wasHost)||(room.status!=='waiting'&&rest.length<2)))
@@ -1274,9 +1334,79 @@ window.leaveRoom=async function(){
   if(DEMO)sb=createMockClient(DEMO_SEED);
   clearSess();
   Object.assign(S,{playerId:null,roomId:null,roomCode:'',isHost:false,myRole:null,gameState:null,players:[],selectedOpt:null,myMission:null,pendingMissions:[],played:[],ended:false,endShown:false,_seen:null,_pids:null});
+  /*DEV-START*/if(wasDev){devExit();toast('Test oyunundan çıktın.');return}/*DEV-END*/
   goTo(DEMO?'s-city':'s-mode');toast('Oyundan çıktın.');
 };
 window.cancelRoom=window.leaveRoom;
+
+/*DEV-START*/
+/* ═════ GELİŞTİRİCİ TEST MASASI ═════
+   "Odaya katıl" ekranına DEV_CODE girilince açılır. build.py --prod bu bloğu tamamen siler. */
+const DEV_CODE='TSDEV1';
+const DEV={db:'mock',city:'karadut',n:3,role:'mayor',mission:'',cor:true};
+let DEV_MISSIONS=[];
+function devSeg(id,items,cur,set){
+  $(id).innerHTML=items.map(([v,l])=>`<button type="button" class="${v===cur?'active':''}" data-v="${v}">${l}</button>`).join('');
+  $(id).onclick=e=>{const b=e.target.closest('button');if(!b)return;set(b.dataset.v);renderDev()};
+}
+function renderDev(){
+  devSeg('dev-db',[['mock','Tarayıcı içi'],['real','Gerçek Supabase']],DEV.db,v=>DEV.db=v);
+  $('dev-db-note').textContent=DEV.db==='mock'?'Hiçbir şey sunucuya yazılmaz. En hızlı test.':'Oda ve botlar gerçek veritabanına yazılır, çıkınca silinir. Gerçek zamanlı akışı test etmek için.';
+  devSeg('dev-city',Object.entries(CITIES).map(([k,c])=>[k,c.name]),DEV.city,v=>DEV.city=v);
+  devSeg('dev-count',[2,3,4,5,6].map(n=>[String(n),String(n)]),String(DEV.n),v=>DEV.n=+v);
+  devSeg('dev-cor',[['1','Açık'],['0','Kapalı']],DEV.cor?'1':'0',v=>DEV.cor=v==='1');
+  $('dev-role').innerHTML=ROLES.map(r=>`<option value="${r.key}" ${r.key===DEV.role?'selected':''}>${r.name}</option>`).join('');
+  $('dev-role').onchange=e=>DEV.role=e.target.value;
+  $('dev-mission').innerHTML=`<option value="">Rastgele</option>`+DEV_MISSIONS.map(m=>`<option value="${m.code}" ${m.code===DEV.mission?'selected':''}>${m.code}: ${esc(m.title)}</option>`).join('');
+  $('dev-mission').onchange=e=>DEV.mission=e.target.value;
+}
+async function openDev(){
+  DEV_MISSIONS=(DEMO_SEED?.missions||[]).slice().sort((a,b)=>a.code.localeCompare(b.code));
+  renderDev();goTo('s-dev');toast('Geliştirici modu açıldı.');
+}
+function devExit(){
+  S.dev=false;DEMO=FORCE_DEMO;sb=FORCE_DEMO?createMockClient(DEMO_SEED):SB_REAL;BOTS=[];
+  document.body.classList.remove('is-dev');document.body.classList.toggle('is-demo',DEMO);
+  $('devbar').hidden=true;renderDev();goTo('s-dev');
+}
+window.devStart=async function(skip){
+  try{
+    if(DEV.db==='mock'){sb=createMockClient(DEMO_SEED);DEMO=true}
+    else{if(!SB_REAL){toast('Supabase istemcisi yüklenemedi. Tarayıcı içi veritabanını seç.','error');return}sb=SB_REAL;DEMO=false}
+    S.dev=true;document.body.classList.add('is-dev');document.body.classList.toggle('is-demo',DEMO);
+    S.playerName=S.playerName||'Geliştirici';S.mode='create';S.selectedCity=DEV.city;
+    lobbyMaxPlayers=DEV.n;lobbyCorruption=DEV.cor;lobbyRoles=new Set(ROLES.map(r=>r.key));
+    if(!skip){await $('btn-create').onclick();return}
+    const missions=[...await dbGet('secret_missions')].sort(()=>Math.random()-.5);
+    const mine=missions.find(m=>m.code===DEV.mission)||missions[0];
+    const code='D'+Math.random().toString(36).slice(2,7).toUpperCase().padEnd(5,'X');
+    const[room]=await dbPost('rooms',{code,status:'playing',city:DEV.city,max_players:DEV.n,corruption_enabled:DEV.cor,roles:ROLES.map(r=>r.key)});
+    S.roomId=room.id;S.roomCode=room.code;S.isHost=true;S.maxPlayers=DEV.n;
+    const[me]=await dbPost('players',{room_id:room.id,name:S.playerName,role:DEV.role,is_ready:true,secret_mission_id:mine.id});
+    S.playerId=me.id;S.myRole=ROLES.find(r=>r.key===DEV.role);S.myMission=mine;
+    await dbPost('game_state',{room_id:room.id,...CITIES[DEV.city].start,suspicion:0});
+    const roles=ROLES.map(r=>r.key).filter(k=>k!==DEV.role).sort(()=>Math.random()-.5);
+    const names=[...BOT_NAMES].sort(()=>Math.random()-.5),pool=missions.filter(m=>m.id!==mine.id);
+    BOTS=[];
+    for(let i=0;i<DEV.n-1;i++){
+      const[p]=await dbPost('players',{room_id:room.id,name:names[i],role:roles[i%roles.length],is_ready:true,secret_mission_id:pool[i%pool.length].id});
+      BOTS.push({id:p.id,name:names[i],mission:pool[i%pool.length],busy:false});
+    }
+    await enterGame();
+  }catch(e){toast('Test oyunu başlatılamadı: '+e.message,'error')}
+};
+function devbarShow(){
+  $('devbar').hidden=false;
+  $('dev-card').innerHTML=(S.cards||[]).slice().sort((a,b)=>a.type.localeCompare(b.type)||a.title.localeCompare(b.title,'tr'))
+    .map(c=>`<option value="${c.id}">${c.type==='crisis'?'Kriz':'Olay'}: ${esc(c.title)}</option>`).join('');
+}
+const devRpc=d=>sb.rpc('apply_card_effects',{p_room:S.roomId,p_delta:d,p_corruption:true}).then(()=>refreshGS());
+window.devDraw=()=>{const c=S.cardMap?.[$('dev-card').value];if(c)showCardModal(c)};
+window.devBump=v=>devRpc({health:v,education:v,security:v,transport:v,social:v});
+window.devSusp=v=>devRpc({suspicion:v});
+window.devMoney=v=>devRpc({treasury:v});
+window.devEnd=()=>dbPatch('rooms',{id:S.roomId},{status:'ended'});
+/*DEV-END*/
 
 /* ═════ AYARLAR ═════ */
 function setSwitch(id,on){$(id).setAttribute('aria-checked',String(!!on))}
@@ -1348,7 +1478,7 @@ $('btn-start').onclick=async()=>{
     for(const r of ROLES){if(pool.length>=pl.length)break;if(!pool.includes(r.key))pool.push(r.key)}
     pool=[...pool].sort(()=>Math.random()-.5);
     for(let i=0;i<pl.length;i++)await dbPatch('players',{id:pl[i].id},{role:pool[i%pool.length]});
-    if(DEMO)await assignBotMissions();
+    if(useBots())await assignBotMissions();
     await dbPatch('rooms',{id:S.roomId},{status:'playing'});
     await loadMyRole();
   }catch(e){toast('Oyun başlatılamadı: '+e.message,'error')}
@@ -1472,6 +1602,7 @@ async function enterGame(){
   startRT(S.roomId,{players:()=>refreshGS(),gs:()=>refreshGS(),rooms:()=>onRoomChange(),played:()=>refreshFeed(),
     resync:async()=>{if(S.ended)return;await refreshGS();await refreshFeed();await onRoomChange()},every:4000});
   if(room?.status==='ended')showEnd();
+  /*DEV-START*/if(S.dev)devbarShow();/*DEV-END*/
 }
 async function onRoomChange(){const r=(await dbGet('rooms',{id:S.roomId}))[0];if(!r||r.status==='ended')showEnd()}
 async function refreshGS(){
@@ -1636,7 +1767,7 @@ window.confirmCard=async function(){
     const apply=applyCard(card,opt,S.playerId);
     await wait(reduceMotion()?150:800);closeCard();await apply;
     await refreshGS();await refreshFeed();
-    if(DEMO)scheduleBots();
+    if(useBots())scheduleBots();
   }catch(e){closeCard();toast('Karar kaydedilemedi: '+e.message,'error')}
 };
 function closeCard(){$('card-overlay').classList.remove('open')}
@@ -1684,6 +1815,7 @@ async function showEnd(){
   clearSess();goTo('s-end');sfx('end');requestAnimationFrame(()=>drawPlan($('end-plan'),S.selectedCity,gs));
 }
 $('btn-end-again').onclick=()=>{
+  /*DEV-START*/if(S.dev){Object.assign(S,{playerId:null,roomId:null,roomCode:'',myRole:null,gameState:null,players:[],played:[],ended:false,endShown:false,_seen:null,_pids:null});devExit();return}/*DEV-END*/
   if(DEMO){sb=createMockClient(DEMO_SEED);BOTS=[]}
   Object.assign(S,{playerId:null,roomId:null,roomCode:'',isHost:false,myRole:null,gameState:null,players:[],selectedOpt:null,myMission:null,pendingMissions:[],played:[],ended:false,endShown:false});
   goTo(DEMO?'s-city':'s-mode');
