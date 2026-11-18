@@ -350,6 +350,23 @@ body.is-demo .demo-badge{display:inline-block}
 .fx{font-size:12px;font-weight:700;padding:1px 7px;border-radius:3px;white-space:nowrap;font-variant-numeric:tabular-nums;border:1px solid}
 .fx.up{color:#1F6B41;border-color:rgba(46,133,83,.45);background:rgba(46,133,83,.08)}
 .fx.down{color:#A42C21;border-color:rgba(200,55,42,.4);background:rgba(200,55,42,.07)}
+.ep-meter{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.ep-meter i{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--ink)}
+.ep-meter i.on{background:var(--ink)}
+.act-list{display:flex;flex-direction:column}
+.act{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:start;width:100%;text-align:left;padding:10px 14px;border-bottom:1px solid var(--rule-2);transition:background-color .12s}
+.act:last-child{border-bottom:0}
+.act:hover:not(:disabled){background:rgba(22,36,31,.04)}
+.act:disabled{opacity:.45;cursor:not-allowed}
+.act .al{font-weight:700;font-size:14px;line-height:1.3}
+.act .ad{grid-column:1/-1;font-size:13px;color:var(--ink-3);line-height:1.35}
+.act .ae{display:inline-flex;gap:3px;align-items:center;font-size:12px;font-weight:700;white-space:nowrap;padding-top:2px}
+.act .ae i{width:8px;height:8px;border-radius:50%;background:var(--ink)}
+.act .fx-chips{grid-column:1/-1;margin-top:2px}
+.act.armed{background:rgba(233,169,28,.16);box-shadow:inset 3px 0 0 var(--konut)}
+.act.armed .ae{color:var(--ink)}
+.fi.act-fi .no b{color:var(--sanayi)}
+.ticker .tag.act{background:#CBB8F0;color:#2A1A55}
 
 /* ── Kart / görev sayfası (alt sayfa) ───── */
 .card-overlay{position:fixed;inset:0;z-index:100;background:rgba(22,36,31,.55);display:flex;align-items:flex-end;justify-content:center;
@@ -683,6 +700,11 @@ body.is-demo .demo-badge{display:inline-block}
         <span id="draw-txt">Gündemden kart çek</span>
       </button>
     </div>
+
+    <section class="sheet acts" id="acts" hidden>
+      <div class="sheet-h"><h3>Yetkilerin</h3><span class="ep-meter" id="ep-meter"></span></div>
+      <div class="act-list" id="act-list"></div>
+    </section>
     </div>
 
     <section class="sheet feed">
@@ -786,7 +808,7 @@ const CITIES={
   karagunduz:{name:'Karagündüz',kind:'şehri',acc:'Karagündüz şehrini',diff:3,diffLabel:'Zor',hex:C.ticari,sheet:'G-03',density:1.55,
     mix:{konut:.44,ticari:.28,sanayi:.12,park:.06,kamu:.10},
     desc:'Bir zamanların gözde metropolü, bugün büyük bir çıkmazın içinde. Belediye bütçesi tükenmenin eşiğinde, sağlık sistemi çöküyor ve toplumsal güven ciddi biçimde sarsılmış durumda. Şehirde herkes birbirinden şüpheleniyor, kurumlar işlevini yitiriyor ve krizler birbirini besliyor. Burada mesele şehri büyütmek değil, onu ayakta tutabilmek.',
-    start:{health:28,education:48,security:42,transport:55,social:38,treasury:280000,businessman_cash:800000}},
+    start:{health:28,education:48,security:42,transport:55,social:38,treasury:340000,businessman_cash:800000}},
 };
 const ICON={
   mayor:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 21h18M5 21V10m14 11V10M9 21v-6m6 6v-6M2.5 10L12 4l9.5 6z"/></svg>',
@@ -805,6 +827,43 @@ const ROLES=[
   {key:'journalist',name:'Gazeteci',color:'#C5541A',ep:4,brief:'Haber ve ifşa',desc:'Kimseye bağlı değilsin. Kirli işleri ortaya çıkarabilir ya da görmezden gelebilirsin. 4 eylem puanın var.'},
 ];
 const BASE_ROLES=['mayor','health_director','businessman'];
+/* Rol yetkileri: her rol oyun boyunca eylem puanını (ROLES[].ep) bu aksiyonlara harcar.
+   corr:true olanlar yalnızca yolsuzluk modu açıkken anlamlıdır. */
+const ACTIONS={
+  mayor:[
+    {key:'ek_butce',label:'Valilikten ek ödenek iste',desc:'Kasa rahatlar, vergi artışı söylentisi halkı kızdırır.',ep:2,fx:{treasury:90000,social:-3}},
+    {key:'halk_bulusmasi',label:'Halk buluşması yap',desc:'Mahalle mahalle gezip dertleri dinlersin.',ep:1,fx:{treasury:-10000,social:3}},
+    {key:'tanidik_ihale',label:'Yol ihalesini tanıdığa ver',desc:'Kasaya prim girer, yollar özensiz yapılır.',ep:2,corr:true,fx:{treasury:50000,transport:-2,suspicion:10,businessman_cash:60000}},
+  ],
+  health_director:[
+    {key:'tarama',label:'Ücretsiz sağlık taraması',desc:'Erken teşhis kampanyası başlatırsın.',ep:2,fx:{health:5,treasury:-35000}},
+    {key:'nobet',label:'Nöbet düzenini sıkılaştır',desc:'Acil servis rahatlar, personel söylenir.',ep:1,fx:{health:2,social:-1}},
+    {key:'denetim_gevset',label:'Denetimleri gevşet',desc:'Fabrikalar rahat nefes alır, şehir almaz.',ep:1,fx:{health:-4,businessman_cash:40000,suspicion:5}},
+  ],
+  businessman:[
+    {key:'sponsor',label:'Belediyeye sponsor ol',desc:'Kasandan belediyeye para aktarırsın, adın parlar.',ep:2,fx:{businessman_cash:-120000,treasury:100000,social:2}},
+    {key:'kapasite',label:'Fabrika kapasitesini artır',desc:'İş ve kâr artar, baca daha çok tüter.',ep:2,fx:{businessman_cash:150000,social:2,health:-3}},
+    {key:'lobi',label:'Mecliste lobi yap',desc:'Teşvik koparırsın, kulislerde adın geçer.',ep:1,corr:true,fx:{businessman_cash:80000,treasury:-40000,suspicion:7}},
+  ],
+  police_chief:[
+    {key:'devriye',label:'Gece devriyelerini artır',desc:'Sokaklar daha güvenli, mesai bütçesi şişer.',ep:1,fx:{security:3,treasury:-15000}},
+    {key:'operasyon',label:'Büyük asayiş operasyonu',desc:'Suç düşer, mahallede gerginlik artar.',ep:2,fx:{security:6,social:-3,treasury:-20000}},
+    {key:'dosya_kapat',label:'Soruşturma dosyasını kapat',desc:'Şüpheler söner, polise güven azalır.',ep:2,corr:true,fx:{suspicion:-12,security:-3}},
+    {key:'devriye_kis',label:'Devriye bütçesini kıs',desc:'Kasa rahatlar, geceleri sokaklar tenhalaşır.',ep:1,fx:{security:-3,treasury:25000}},
+  ],
+  education_director:[
+    {key:'etut',label:'Ücretsiz etüt programı',desc:'Hafta sonu okullar açık kalır.',ep:1,fx:{education:3,treasury:-15000}},
+    {key:'veli',label:'Okul–veli seferberliği',desc:'Veliler okulları boyar, dernekler kurulur.',ep:2,fx:{education:3,social:3,treasury:-20000}},
+    {key:'kadro_dondur',label:'Öğretmen kadrolarını dondur',desc:'Kasa nefes alır, sınıflar kalabalıklaşır.',ep:1,fx:{education:-4,treasury:30000}},
+  ],
+  journalist:[
+    {key:'ifsa',label:'Yolsuzluk dosyası yayımla',desc:'Savcılık harekete geçer, halk öfkelenir.',ep:2,corr:true,fx:{suspicion:15,social:-2}},
+    {key:'olumlu',label:'Olumlu haber yap',desc:'Gündemi yumuşatırsın.',ep:1,fx:{social:3,suspicion:-5}},
+    {key:'saglik_haberi',label:'Hastane skandalını duyur',desc:'Bakanlık el atar, mahalle tedirgin olur.',ep:1,fx:{health:3,social:-2}},
+  ],
+};
+const actionsFor=role=>(ACTIONS[role]||[]).filter(a=>!a.corr||S.corruption);
+const findAction=key=>Object.values(ACTIONS).flat().find(a=>a.key===key);
 /* Oyuncu sayısı arttıkça kişi başı kart azalır; deste 24 kart */
 const cpp=n=>n<=3?6:n===4?5:4;
 const myCpp=()=>cpp(S.players?.length||2);
@@ -864,6 +923,13 @@ function countTo(el,from,to){
   const t0=performance.now();(function f(t){const p=Math.max(0,Math.min(1,(t-t0)/600));el.textContent=Math.round(from+(to-from)*(1-Math.pow(1-p,3)));if(p<1)requestAnimationFrame(f)})(t0);
 }
 let tickT;
+function showActTicker(a){
+  const d=findAction(a.action);if(!d)return;
+  const who=esc((S.players||[]).find(x=>x.id===a.player_id)?.name||'Bir oyuncu');
+  $('ticker').innerHTML=`<span class="tag act">Yetki</span><span><b>${who}</b> yetkisini kullandı: ${esc(d.label)}</span>`;
+  $('ticker').classList.add('show');sfx('notify');
+  clearTimeout(tickT);tickT=setTimeout(()=>$('ticker').classList.remove('show'),4200);
+}
 function showTicker(p){
   const c=S.cardMap?.[p.card_id];if(!c)return;
   const who=esc((S.players||[]).find(x=>x.id===p.player_id)?.name||'Bir oyuncu');
@@ -1026,11 +1092,11 @@ if(document.fonts)document.fonts.ready.then(redrawVisible);
 
 /* ═════ SAHTE SUPABASE (demo) ═════ */
 function createMockClient(seed){
-  const T={rooms:[],players:[],game_state:[],played_cards:[],
+  const T={rooms:[],players:[],game_state:[],played_cards:[],role_actions:[],
     cards:(seed?.cards||[]).map(c=>({...c})),secret_missions:(seed?.missions||[]).map(m=>({...m}))};
   const DEF={rooms:{status:'waiting',max_players:3,corruption_enabled:true,host_id:null},
     players:{role:null,is_ready:false,secret_mission_id:null},game_state:{suspicion:0},played_cards:{chosen_option:null}};
-  const TS={rooms:'created_at',players:'joined_at',played_cards:'played_at',game_state:'updated_at'};
+  const TS={rooms:'created_at',players:'joined_at',played_cards:'played_at',game_state:'updated_at',role_actions:'created_at'};
   const chans=new Set();let tick=0;const clone=r=>JSON.parse(JSON.stringify(r));
   function emit(table,eventType,row){
     chans.forEach(ch=>ch.subs.forEach(s=>{
@@ -1088,8 +1154,10 @@ function startRT(roomId,cbs){
     .on('postgres_changes',{event:'*',schema:'public',table:'players',filter:`room_id=eq.${roomId}`},()=>cbs.players?.())
     .on('postgres_changes',{event:'*',schema:'public',table:'game_state',filter:`room_id=eq.${roomId}`},()=>cbs.gs?.())
     .on('postgres_changes',{event:'*',schema:'public',table:'rooms',filter:`id=eq.${roomId}`},()=>cbs.rooms?.())
-    .on('postgres_changes',{event:'*',schema:'public',table:'played_cards',filter:`room_id=eq.${roomId}`},()=>cbs.played?.())
-    .subscribe(st=>{
+    .on('postgres_changes',{event:'*',schema:'public',table:'played_cards',filter:`room_id=eq.${roomId}`},()=>cbs.played?.());
+  // Tablo henüz kurulmamış bir sunucuda kanalı düşürmesin diye yalnızca varsa dinlenir
+  if(cbs.acts)rtCh.on('postgres_changes',{event:'*',schema:'public',table:'role_actions',filter:`room_id=eq.${roomId}`},()=>cbs.played?.());
+  rtCh.subscribe(st=>{
       if(st==='SUBSCRIBED'){setConn('ok');cbs.resync?.()}
       else if(st==='CHANNEL_ERROR'||st==='TIMED_OUT'||st==='CLOSED')setConn('bad');
     });
@@ -1376,8 +1444,15 @@ async function spawnBots(roomId,n){
   }
 }
 async function assignBotMissions(){
-  const all=[...await dbGet('secret_missions')].sort(()=>Math.random()-.5);
+  const r=(await dbGet('rooms',{id:S.roomId}))[0];S.corruption=r?.corruption_enabled!==false;
+  const all=[...(await dbGet('secret_missions')).filter(missionOk)].sort(()=>Math.random()-.5);
   for(const b of BOTS){b.mission=all.pop();await dbPatch('players',{id:b.id},{secret_mission_id:b.mission.id})}
+}
+/* Bir etkinin görev yönünde mi ters yönde mi olduğunu ölçer (pozitif = göreve yarar) */
+function missionGain(fx,mission){
+  if(!mission)return 0;const m=mission.target_metric,dir=mission.target_direction==='above'?1:-1;
+  const v=m==='overall'?COMFORT.reduce((a,c)=>a+c.w*(fx[c.key]||0),0):m==='treasury'?(fx.treasury||0)/10000:(fx[m]||0);
+  return v*dir;
 }
 function botChoose(card,mission){
   const opts=card.options||[];if(!opts.length)return null;
@@ -1387,6 +1462,16 @@ function botChoose(card,mission){
     if(m==='overall')s=COMFORT.reduce((a,c)=>a+c.w*(e[c.key]||0),0);else if(m==='treasury')s=(o.cost||0)/10000;else s=e[m]||0;
     s=s*dir+Math.random()*2;if(s>bs){bs=s;best=i}});
   return best;
+}
+async function botMaybeAct(b){
+  if(!S.actionsOK||S.ended||Math.random()<.45)return;
+  const me=(await dbGet('players',{id:b.id}))[0];if(!me?.role)return;
+  await loadActs();const left=epLeft(b.id,me.role);
+  const opts=actionsFor(me.role).filter(a=>a.ep<=left);if(!opts.length)return;
+  const i=botChoose({options:opts.map(o=>({effects:o.fx,cost:o.fx.treasury||0}))},b.mission);
+  if(missionGain(opts[i].fx,b.mission)<0)return;
+  const room=(await dbGet('rooms',{id:S.roomId}))[0];if(!room||room.status==='ended')return;
+  await performAction(opts[i],b.id);
 }
 function scheduleBots(){
   BOTS.forEach((b,i)=>{
@@ -1398,6 +1483,7 @@ function scheduleBots(){
         if(pc.filter(p=>p.player_id===b.id).length>=myCpp())return;
         const card=await pickCardFor(b.id);if(!card)return;
         await applyCard(card,card.type==='crisis'?botChoose(card,b.mission):null,b.id);
+        await botMaybeAct(b);
       }catch(e){console.warn('bot',e)}
       b.busy=false;
       try{if(S.ended||!S.roomId)return;const pc=await dbGet('played_cards',{room_id:S.roomId});const n=id=>pc.filter(p=>p.player_id===id).length;if(n(b.id)<n(S.playerId))scheduleBots()}catch(e){}
@@ -1428,7 +1514,8 @@ $('btn-to-mission').onclick=()=>showMissionSelect();
 /* ═════ GİZLİ GÖREV ═════ */
 async function showMissionSelect(){
   goTo('s-mission');
-  const all=await dbGet('secret_missions');
+  try{const r=(await dbGet('rooms',{id:S.roomId}))[0];if(r){S.corruption=r.corruption_enabled!==false;if(r.city)S.selectedCity=r.city}}catch(e){}
+  const all=(await dbGet('secret_missions')).filter(missionOk);
   const taken=new Set((await dbGet('players',{room_id:S.roomId})).filter(p=>p.id!==S.playerId).map(p=>p.secret_mission_id).filter(Boolean));
   const free=all.filter(m=>!taken.has(m.id));
   S.pendingMissions=[...(free.length>=3?free:all)].sort(()=>Math.random()-.5).slice(0,3);
@@ -1442,7 +1529,7 @@ window.pickMission=function(idx){
   $('menv-'+idx).classList.add('selected');
   const m=S.pendingMissions[idx];S.myMission=m;
   const card=$('mcard-'+idx);card.classList.add('opened');card.innerHTML=`<b>${esc(m.title)}</b><span>Açık</span>`;
-  $('m-title').textContent=m.title;$('m-desc').textContent=m.description;$('m-win-txt').textContent=m.win_condition;
+  $('m-title').textContent=m.title;$('m-desc').textContent=m.description;$('m-win-txt').textContent=missionText(m);
   $('mission-reveal').classList.add('show');$('btn-accept-mission').style.display='flex';
 };
 $('btn-accept-mission').onclick=async()=>{
@@ -1466,8 +1553,9 @@ async function enterGame(){
   document.querySelector('.susp-row').style.display=S.corruption?'grid':'none';
   const{data:cards}=await sb.from('cards').select('*');
   S.cards=cards||[];S.cardMap=Object.fromEntries(S.cards.map(x=>[x.id,x]));
+  S.acts=[];S.armed=null;S.actBusy=false;S.actionsOK=await probeActions();
   await refreshGS();await refreshFeed();requestAnimationFrame(redrawVisible);
-  startRT(S.roomId,{players:()=>refreshGS(),gs:()=>refreshGS(),rooms:()=>onRoomChange(),played:()=>refreshFeed(),
+  startRT(S.roomId,{acts:S.actionsOK,players:()=>refreshGS(),gs:()=>refreshGS(),rooms:()=>onRoomChange(),played:()=>refreshFeed(),
     resync:async()=>{if(S.ended)return;await refreshGS();await refreshFeed();await onRoomChange()},every:4000});
   if(room?.status==='ended')showEnd();
   }
@@ -1518,12 +1606,12 @@ function deltasFor(card,opt){
   if(card.type==='crisis'){const o=(card.options||[])[opt];if(!o)return{};return{treasury:o.cost||0,...(o.effects||{})}}
   return{treasury:card.budget_effect||0,...(card.stat_effects||{})};
 }
-function fxChips(eff){
-  const keys=FX_ORDER.filter(k=>eff&&eff[k]&&!(k==='suspicion'&&!S.corruption));
+function fxChips(eff,withTreasury=false){
+  const keys=(withTreasury?['treasury',...FX_ORDER]:FX_ORDER).filter(k=>eff&&eff[k]&&!(k==='suspicion'&&!S.corruption));
   if(!keys.length)return'';
   return`<span class="fx-chips">${keys.map(k=>{
-    const v=eff[k],isMoney=k==='businessman_cash',good=k==='suspicion'?v<0:v>0;
-    return`<span class="fx ${good?'up':'down'}">${METRIC[k]} ${isMoney?signedMoney(v):signed(v)}</span>`;
+    const v=eff[k],isMoney=k==='businessman_cash'||k==='treasury',good=k==='suspicion'?v<0:v>0;
+    return`<span class="fx ${good?'up':'down'}">${k==='treasury'?'Kasa':METRIC[k]} ${isMoney?signedMoney(v):signed(v)}</span>`;
   }).join('')}</span>`;
 }
 async function applyCard(card,opt,playerId){
@@ -1556,11 +1644,23 @@ async function pickCardFor(playerId){
 async function refreshFeed(){
   const{data:pc}=await sb.from('played_cards').select('*').eq('room_id',S.roomId).order('played_at',{ascending:true});
   if(!pc)return;S.played=pc;
-  const seen=S._seen;S._seen=new Set(pc.map(p=>p.id));
-  if(seen){const fresh=pc.filter(p=>!seen.has(p.id)&&p.player_id!==S.playerId);if(fresh.length)showTicker(fresh[fresh.length-1])}
+  const acts=await loadActs();
+  const seen=S._seen;S._seen=new Set([...pc,...acts].map(p=>p.id));
+  if(seen){
+    const fresh=[...pc.map(p=>({...p,t:p.played_at})),...acts.map(a=>({...a,t:a.created_at,isAct:true}))]
+      .filter(p=>!seen.has(p.id)&&p.player_id!==S.playerId).sort((a,b)=>a.t<b.t?-1:1);
+    if(fresh.length){const f=fresh[fresh.length-1];f.isAct?showActTicker(f):showTicker(f)}
+  }
   const names=Object.fromEntries((S.players||[]).map(p=>[p.id,p]));
-  $('feed-count').textContent=pc.length?`${pc.length} karar`:'';
-  $('feed-list').innerHTML=pc.length?pc.map((p,i)=>{
+  $('feed-count').textContent=pc.length?`${pc.length} karar`+(acts.length?`, ${acts.length} yetki`:''):'';
+  const items=[...pc.map((p,i)=>({p,i,t:p.played_at})),...acts.map(a=>({a,t:a.created_at}))].sort((x,y)=>x.t<y.t?-1:x.t>y.t?1:0);
+  $('feed-list').innerHTML=items.length?items.map(({p,i,a})=>{
+    if(a){
+      const d=findAction(a.action);if(!d)return'';
+      const me=a.player_id===S.playerId,pl=names[a.player_id],r=ROLES.find(x=>x.key===pl?.role);
+      const nm=me?'Sen':esc(pl?.name||'Bir oyuncu');
+      return`<div class="fi act-fi"><div class="no">Yetki<b>${a.cost}</b></div><div class="tx"><b>${nm}</b>${r?` (${esc(r.name)})`:''} yetkisini kullandı: <q>${esc(d.label)}</q>.${fxChips(d.fx,true)}</div></div>`;
+    }
     const c=S.cardMap?.[p.card_id];if(!c)return'';
     const me=p.player_id===S.playerId,nm=me?'Sen':esc(names[p.player_id]?.name||'Bir oyuncu');
     const opt=c.type==='crisis'?(c.options||[])[p.chosen_option]:null;
@@ -1578,6 +1678,59 @@ function renderRound(){
   $('round-pips').innerHTML=Array.from({length:k},(_,i)=>`<i class="round-pip${i<mine?' done':''}"></i>`).join('');
   const out=mine>=k;$('btn-draw').disabled=out||S.ended;
   $('draw-txt').textContent=out?'Kartların bitti, diğerleri oynuyor':'Gündemden kart çek';
+  renderActs();
+}
+
+/* ═════ ROL YETKİLERİ ═════ */
+async function probeActions(){
+  try{const{error}=await sb.from('role_actions').select('id').eq('room_id',S.roomId);return!error}catch(e){return false}
+}
+async function loadActs(){
+  if(!S.actionsOK){S.acts=[];return S.acts}
+  const{data,error}=await sb.from('role_actions').select('*').eq('room_id',S.roomId).order('created_at',{ascending:true});
+  if(!error&&data)S.acts=data;return S.acts;
+}
+function epLeft(pid,roleKey){
+  const r=ROLES.find(x=>x.key===roleKey);
+  return Math.max(0,(r?.ep||0)-(S.acts||[]).filter(a=>a.player_id===pid).reduce((t,a)=>t+(a.cost||0),0));
+}
+function renderActs(){
+  const box=$('acts');if(!box)return;
+  if(!S.actionsOK||!S.myRole){box.hidden=true;return}
+  box.hidden=false;
+  const max=S.myRole.ep,left=epLeft(S.playerId,S.myRole.key);
+  $('ep-meter').innerHTML=`<span>Eylem puanı <b>${left}/${max}</b></span>`+Array.from({length:max},(_,i)=>`<i class="${i<left?'on':''}"></i>`).join('');
+  $('act-list').innerHTML=actionsFor(S.myRole.key).map(a=>{
+    const armed=S.armed===a.key,off=a.ep>left||S.ended||S.actBusy;
+    return`<button type="button" class="act${armed?' armed':''}" ${off?'disabled':''} onclick="useAction('${a.key}')">
+      <span class="al">${esc(a.label)}</span><span class="ae">${armed?'Onaylamak için tekrar dokun':`${a.ep} EP`}</span>
+      <span class="ad">${esc(a.desc)}</span>${fxChips(a.fx,true)}</button>`;
+  }).join('');
+}
+let armT;
+window.useAction=async function(key){
+  if(S.actBusy||S.ended)return;
+  if(S.armed!==key){
+    S.armed=key;sfx('click');renderActs();
+    clearTimeout(armT);armT=setTimeout(()=>{S.armed=null;renderActs()},4000);return;
+  }
+  clearTimeout(armT);S.armed=null;
+  const a=findAction(key);if(!a)return;
+  S.actBusy=true;renderActs();
+  try{
+    await loadActs();
+    if(epLeft(S.playerId,S.myRole.key)<a.ep){toast('Bu yetki için eylem puanın yetmiyor.','error');return}
+    await performAction(a,S.playerId);
+    sfx('stamp');toast(`Yetki kullanıldı: ${a.label}.`,'success');
+    await refreshGS();await refreshFeed();
+  }catch(e){toast('Yetki kullanılamadı: '+e.message,'error')}
+  finally{S.actBusy=false;renderActs()}
+};
+async function performAction(a,playerId){
+  const{error}=await sb.rpc('apply_card_effects',{p_room:S.roomId,p_delta:a.fx,p_corruption:!!S.corruption});
+  if(error)throw new Error(error.message);
+  await dbPost('role_actions',{room_id:S.roomId,player_id:playerId,action:a.key,cost:a.ep});
+  await checkEnd();
 }
 
 /* ═════ KART SAYFASI ═════ */
@@ -1642,12 +1795,31 @@ window.closeCardIfOutside=function(e){if(e.target.id==='card-overlay'&&!$('stamp
 
 /* ═════ GÖREV PENCERESİ ═════ */
 function metricValue(key,gs){return key==='overall'?overall(gs):gs[key]}
-function missionWon(m,gs){if(!m)return false;const v=metricValue(m.target_metric,gs);return m.target_direction==='above'?v>m.target_value:v<m.target_value}
+/* Görev hedefleri ilçenin başlangıç değerine göre ayarlanır (denge simülasyonuyla seçildi, her görev ~%35-45 tutar).
+   d: başlangıca eklenen puan, ratio: kasanın başlangıca oranı, abs: sabit eşik. Kural yoksa DB'deki target_value kullanılır. */
+const MISSION_RULE={M01:{d:3},M02:{d:0},M03:{d:3},M04:{d:-6},M05:{d:12},M06:{ratio:.55},M07:{abs:20,corr:true},M08:{d:3},M09:{d:9}};
+const missionOk=m=>!MISSION_RULE[m?.code]?.corr||S.corruption!==false;
+function missionTarget(m,cityKey=S.selectedCity){
+  const st=(CITIES[cityKey]||CITIES.karadut).start,r=MISSION_RULE[m.code];
+  if(!r)return m.target_value;
+  if(r.abs!=null)return r.abs;
+  if(r.ratio!=null)return Math.round(st.treasury*r.ratio/10000)*10000;
+  return Math.max(0,Math.min(100,metricValue(m.target_metric,st)+r.d));
+}
+function missionText(m,cityKey=S.selectedCity){
+  if(!m)return'';if(!MISSION_RULE[m.code])return m.win_condition;
+  const t=missionTarget(m,cityKey),st=(CITIES[cityKey]||CITIES.karadut).start,k=m.target_metric,up=m.target_direction==='above';
+  const name=k==='overall'?'Halk konforu':k==='treasury'?'Belediye kasası':k==='suspicion'?'Yolsuzluk şüphesi':METRIC[k];
+  const fmt=v=>k==='treasury'?money(v):v;
+  const now=k==='suspicion'?'':` (başlangıç: ${fmt(metricValue(k,st))})`;
+  return`Oyun sonunda ${name} ${fmt(t)} ${up?'veya üstünde':'veya altında'} olsun${now}.`;
+}
+function missionWon(m,gs){if(!m||!gs)return false;const v=metricValue(m.target_metric,gs),t=missionTarget(m);return m.target_direction==='above'?v>=t:v<=t}
 window.showMissionModal=function(){
   if(!S.myMission){toast('Bu oyunda gizli görev seçmedin.','error');return}
-  const m=S.myMission;$('mm-title').textContent=m.title;$('mm-desc').textContent=m.description;$('mm-win-txt').textContent=m.win_condition;
+  const m=S.myMission;$('mm-title').textContent=m.title;$('mm-desc').textContent=m.description;$('mm-win-txt').textContent=missionText(m);
   if(S.gameState){const v=metricValue(m.target_metric,S.gameState),ok=missionWon(m,S.gameState);
-    $('mm-now').innerHTML=`Şu anki değer: <b class="num">${m.target_metric==='treasury'?money(v):v}</b>. ${ok?'Oyun şimdi bitse görevini başarırdın.':'Henüz hedefte değilsin.'}`}
+    $('mm-now').innerHTML=`Şu anki değer: <b class="num">${m.target_metric==='treasury'?money(v):v}</b>, hedef <b class="num">${m.target_metric==='treasury'?money(missionTarget(m)):missionTarget(m)}</b>. ${ok?'Oyun şimdi bitse görevini başarırdın.':'Henüz hedefte değilsin.'}`}
   $('mission-overlay').classList.add('open');
 };
 window.closeMissionOverlay=function(e){if(!e||e.target.id==='mission-overlay')$('mission-overlay').classList.remove('open')};
@@ -1676,7 +1848,7 @@ async function showEnd(){
   $('end-players').innerHTML=`<div class="sheet-h"><h3>Gizli görevler açıldı</h3></div>`+res.map(({p,m,won})=>{
     const r=ROLES.find(x=>x.key===p.role);
     return`<div class="ep ${won?'win':'lose'}"><div class="nm">${esc(p.name)}${p.id===S.playerId?' (sen)':''}<small>${esc(r?.name||'')}</small></div>
-      <div class="res">${won?'BAŞARDI':'BAŞARAMADI'}</div><div class="ms"><b>${esc(m?.title||'Görev seçmedi')}</b>. ${esc(m?.win_condition||'')}</div></div>`;
+      <div class="res">${won?'BAŞARDI':'BAŞARAMADI'}</div><div class="ms"><b>${esc(m?.title||'Görev seçmedi')}</b>. ${esc(missionText(m))}</div></div>`;
   }).join('');
   stopRT();
   clearSess();goTo('s-end');sfx('end');requestAnimationFrame(()=>drawPlan($('end-plan'),S.selectedCity,gs));
