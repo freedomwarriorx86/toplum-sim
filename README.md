@@ -20,7 +20,7 @@ Vanilla JS, tek dosya (`index.html`) + Supabase (veritabanı ve gerçek zamanlı
 - `data/seed_cards.sql`: kart içerikleri
 - `data/apply_card_effects.sql`: kart etkilerini tek UPDATE ile uygulayan fonksiyon
 - `data/rooms_roles.sql`: odanın rol havuzu sütunu
-- `data/cleanup_rooms.sql`: iki günden eski odaları her gece silen pg_cron görevi (henüz uygulanmadı, onay bekliyor)
+- `data/cleanup_rooms.sql`: iki günden eski odaları her gece silen pg_cron görevi (Supabase’de kurulu)
 - `data/role_actions.sql`: rol yetkileri (eylem puanı) kayıt tablosu. Tablo yoksa oyun yetki panelini gizler.
 
 ## Denge
