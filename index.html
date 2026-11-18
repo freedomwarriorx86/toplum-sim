@@ -532,7 +532,7 @@ body.is-demo .demo-badge{display:inline-block}
   </div>
   <div class="hero-text">
   <h1 class="display title">Toplum<br>Simülasyonu</h1>
-  <p class="lede">İki ya da üç kişi aynı ilçeyi birlikte yönetir. Bütçe kısıtlı, krizler gerçek zamanlı ve herkesin kimseye söylemediği bir hedefi var.</p>
+  <p class="lede">İki ila altı kişi aynı ilçeyi birlikte yönetir. Bütçe kısıtlı, krizler gerçek zamanlı ve herkesin kimseye söylemediği bir hedefi var.</p>
   <div class="name-form">
     <div class="field">
       <label for="input-name">Adın</label>
@@ -542,7 +542,7 @@ body.is-demo .demo-badge{display:inline-block}
   </div>
   <div class="demo-entry" id="demo-entry">
     <button class="link" id="btn-demo" type="button">Tek başına dene: botlarla demo oyun</button>
-    <p class="demo-note" id="demo-note">İki bot oyuncu odana katılır, internet bağlantısı gerekmez.</p>
+    <p class="demo-note" id="demo-note">Boş koltuklara bot oyuncular oturur, internet bağlantısı gerekmez.</p>
   </div>
   </div>
   </div>
@@ -2001,10 +2001,10 @@ async function showEnd(){
   $('end-title').textContent=me?.won?'Görevini başardın':'Görevin tutmadı';
   $('end-sub').textContent=`${city.name} ${played.length} kararla yönetildi. `+(winners.length?`Gizli görevini tamamlayan: ${winners.map(w=>w.p.id===S.playerId?'sen':w.p.name).join(', ')}.`:'Kimse gizli görevini tamamlayamadı.');
   $('end-score').textContent=ov;$('end-score').style.color=ov>=60?C.park:ov>=45?C.ink:C.ticari;
-  const row=(l,a,b,isMoney,cls='')=>{const d=b-a,dc=d>0?'up':d<0?'down':'n';return`<tr class="${cls}"><td>${l}</td><td class="n">${isMoney?money(a):a}</td><td class="n">${isMoney?money(b):b}</td><td class="${dc}">${d?(isMoney?signedMoney(d):signed(d)):'±0'}</td></tr>`};
+  const row=(l,a,b,isMoney,cls='',lowGood=false)=>{const d=b-a,g=lowGood?-d:d,dc=g>0?'up':g<0?'down':'n';return`<tr class="${cls}"><td>${l}</td><td class="n">${isMoney?money(a):a}</td><td class="n">${isMoney?money(b):b}</td><td class="${dc}">${d?(isMoney?signedMoney(d):signed(d)):'±0'}</td></tr>`};
   $('end-metrics').innerHTML=`<thead><tr><th>Dönem raporu</th><th class="n">Başta</th><th class="n">Sonda</th><th class="n">Fark</th></tr></thead><tbody>`+
     row('Halk konforu',ov0,ov,false,'total')+COMFORT.map(c=>row(c.label,city.start[c.key],gs[c.key])).join('')+
-    row('Belediye kasası',city.start.treasury,gs.treasury,true)+(S.corruption?row('Şüphe',0,gs.suspicion||0):'')+'</tbody>';
+    row('Belediye kasası',city.start.treasury,gs.treasury,true)+(S.corruption?row('Şüphe',0,gs.suspicion||0,false,'',true):'')+'</tbody>';
   $('end-players').innerHTML=`<div class="sheet-h"><h3>Gizli görevler açıldı</h3></div>`+res.map(({p,m,won})=>{
     const r=ROLES.find(x=>x.key===p.role);
     return`<div class="ep ${won?'win':'lose'}"><div class="nm">${esc(p.name)}${p.id===S.playerId?' (sen)':''}<small>${esc(r?.name||'')}</small></div>
