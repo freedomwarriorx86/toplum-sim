@@ -170,6 +170,33 @@ h2.h{font-family:var(--display);font-weight:750;font-stretch:85%;font-size:30px;
 .name-form{display:flex;flex-direction:column;gap:12px;margin-top:26px}
 .demo-entry{margin-top:16px;display:flex;flex-direction:column;align-items:flex-start;gap:2px}
 .demo-note{font-size:13px;color:var(--ink-3)}
+.extra-entry{margin-top:14px;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px}
+.career{font-size:13px;color:var(--ink-2)}
+.invite-note{margin-bottom:10px;padding:10px 12px;border:1.5px dashed var(--kamu);border-radius:var(--r);font-size:14px;background:rgba(36,87,166,.06)}
+.invite-note[hidden]{display:none}
+.net-bar{position:fixed;left:0;right:0;top:0;z-index:60;padding:calc(env(safe-area-inset-top,0px) + 8px) 16px 8px;background:var(--ticari);color:#fff;font-size:14px;font-weight:600;text-align:center;transform:translateY(-110%);transition:transform .25s}
+body.offline .net-bar{transform:none}
+.chip.mission{position:relative}
+.chip.mission.on-track::after,.chip.mission.off-track::after{content:'';position:absolute;top:-3px;right:-3px;width:11px;height:11px;border-radius:50%;border:2px solid var(--sheet)}
+.chip.mission.on-track::after{background:var(--park)}
+.chip.mission.off-track::after{background:var(--ticari)}
+.help-dots{display:flex;gap:6px;margin-top:16px}
+.help-dots i{width:22px;height:5px;border-radius:2px;background:var(--rule)}
+.help-dots i.on{background:var(--ink)}
+.help-nav{display:grid;grid-template-columns:1fr 2fr;gap:10px;margin-top:16px}
+.mission-modal.help-modal .t{color:var(--ink)}
+.mission-modal.help-modal{border-top-color:var(--ink)}
+.hl{display:grid;grid-template-columns:96px 1fr;gap:10px;padding:11px 14px;border-bottom:1px solid var(--rule-2);font-size:14px}
+.hl .k{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding-top:2px}
+.hl .k.up{color:var(--park)}.hl .k.down{color:var(--ticari)}.hl .k.n{color:var(--ink-3)}
+.hl-bar{display:grid;grid-template-columns:minmax(0,1fr) 120px 44px;gap:10px;align-items:center;padding:9px 14px;border-bottom:1px solid var(--rule-2);font-size:14px}
+.hl-bar:last-child{border-bottom:0}
+.hl-bar .tr{position:relative;height:8px;background:var(--rule-2);border-radius:2px}
+.hl-bar .tr i{position:absolute;top:0;bottom:0;border-radius:2px}
+.hl-bar .tr::after{content:'';position:absolute;left:50%;top:-3px;bottom:-3px;width:1.5px;background:var(--ink-3)}
+.hl-bar .v{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.hl-bar small{color:var(--ink-3)}
+.career-end{text-align:center;color:var(--ink-3);margin-top:4px}
 
 /* ── Şehir seçimi ───────────────────────── */
 .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
@@ -505,6 +532,7 @@ body.is-demo .demo-badge{display:inline-block}
   <h1 class="display title">Toplum<br>Simülasyonu</h1>
   <p class="lede">İki ila altı kişi aynı ilçeyi birlikte yönetir. Bütçe kısıtlı, krizler gerçek zamanlı ve herkesin kimseye söylemediği bir hedefi var.</p>
   <div class="name-form">
+    <p class="invite-note" id="invite-note" hidden></p>
     <div class="field">
       <label for="input-name">Adın</label>
       <input class="input" type="text" id="input-name" placeholder="Masada görünecek ad" maxlength="20" autocomplete="off">
@@ -514,6 +542,10 @@ body.is-demo .demo-badge{display:inline-block}
   <div class="demo-entry" id="demo-entry">
     <button class="link" id="btn-demo" type="button">Tek başına dene: botlarla demo oyun</button>
     <p class="demo-note" id="demo-note">Boş koltuklara bot oyuncular oturur, internet bağlantısı gerekmez.</p>
+  </div>
+  <div class="extra-entry">
+    <button class="link" type="button" onclick="openHelp()">Nasıl oynanır?</button>
+    <span class="career" id="career-line"></span>
   </div>
   </div>
   </div>
@@ -598,7 +630,7 @@ body.is-demo .demo-badge{display:inline-block}
   <div class="wait-meta">
     <div class="city-chip" id="wait-badge"></div>
     <span class="conn"><i></i>Bağlanıyor</span>
-    <button class="link" type="button" id="btn-copy-code">Kodu kopyala</button>
+    <span style="display:flex;gap:16px"><button class="link" type="button" id="btn-copy-code">Kodu kopyala</button><button class="link" type="button" onclick="shareCode()">Davet gönder</button></span>
   </div>
   <div class="sheet plist" id="plist"></div>
   <p class="start-hint" id="start-hint">Diğer oyuncuların katılmasını bekle.</p>
@@ -728,10 +760,12 @@ body.is-demo .demo-badge{display:inline-block}
   <section class="sheet" style="margin-top:14px;overflow-x:auto">
     <table class="end-table" id="end-metrics"></table>
   </section>
+  <section class="sheet" style="margin-top:14px" id="end-highlights"></section>
   <section class="sheet" style="margin-top:14px" id="end-players"></section>
   <div class="stack">
     <button class="btn btn-ink" id="btn-end-again" type="button">Yeni oyun kur</button>
   </div>
+  <p class="small career-end" id="end-career"></p>
   </div></div>
 </main>
 
@@ -758,14 +792,29 @@ body.is-demo .demo-badge{display:inline-block}
       <div class="set-row"><div><b>Ses düzeyi</b><span id="vol-txt"></span></div><input type="range" id="set-vol" min="0" max="100" step="5" aria-label="Ses düzeyi"></div>
       <div class="set-row"><div><b>Müzik</b><span>Arka plan müziği, yakında eklenecek</span></div><button class="switch" type="button" role="switch" id="sw-music" aria-label="Müzik"></button></div>
       <div class="set-row"><div><b>Canlı harita</b><span>Trafik, alarm halkaları ve uçan değerler</span></div><button class="switch" type="button" role="switch" id="sw-motion" aria-label="Canlı harita"></button></div>
+      <div class="set-row"><div><b>Titreşim</b><span>Karar, bildirim ve dönem sonunda kısa titreşim</span></div><button class="switch" type="button" role="switch" id="sw-haptic" aria-label="Titreşim"></button></div>
     </div>
     <div class="stack">
+      <button class="btn btn-line" type="button" onclick="closeSettings();openHelp()">Nasıl oynanır?</button>
       <button class="btn btn-danger" type="button" id="btn-leave">Oyundan çık</button>
       <button class="btn btn-line" type="button" onclick="closeSettings()">Kapat</button>
     </div>
   </div>
 </div>
 <button class="icon-btn fab-settings" id="fab-settings" type="button" onclick="openSettings()" aria-label="Ayarlar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3M4.9 4.9l2.1 2.1m10 10 2.1 2.1M4.9 19.1 7 17m10-10 2.1-2.1"/></svg></button>
+
+<!-- NASIL OYNANIR -->
+<div class="card-overlay" id="help-overlay" onclick="closeHelp(event)">
+  <div class="mission-modal help-modal" role="dialog" aria-modal="true" aria-labelledby="help-title">
+    <div class="grab"></div>
+    <div class="card-kind"><span>Nasıl oynanır</span><span id="help-step"></span></div>
+    <div class="t" id="help-title">—</div>
+    <p class="d" id="help-body">—</p>
+    <div class="help-dots" id="help-dots"></div>
+    <div class="help-nav"><button class="btn btn-line" type="button" id="help-prev">Geri</button><button class="btn btn-ink" type="button" id="help-next">İleri</button></div>
+  </div>
+</div>
+<div class="net-bar" id="net-bar" role="status">İnternet bağlantısı yok. Bağlantı gelince masa kendini günceller.</div>
 
 <!-- GÖREV (oyun içi) -->
 <div class="card-overlay" id="mission-overlay" onclick="closeMissionOverlay(event)">
@@ -898,12 +947,13 @@ let tt;function toast(m,t=''){const el=$('toast');el.textContent=m;el.className=
 
 /* ═════ TERCİHLER + SES ═════ */
 const PREF_KEY='tsim_prefs';
-const PREFS={sfx:true,music:false,volume:.6,motion:true};
+const PREFS={sfx:true,music:false,volume:.6,motion:true,haptics:true};
 try{Object.assign(PREFS,JSON.parse(localStorage.getItem(PREF_KEY)||'{}'))}catch(e){}
 function savePrefs(){try{localStorage.setItem(PREF_KEY,JSON.stringify(PREFS))}catch(e){}}
 let AC=null;
 /* Kısa sentez sesler: dosya gerekmez. Gerçek ses dosyaları gelince yalnızca bu fonksiyon değişir. */
 function sfx(kind){
+  if(kind==='stamp'||kind==='notify'||kind==='end')buzz(kind);
   if(!PREFS.sfx||!PREFS.volume)return;
   try{
     AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();
@@ -1148,7 +1198,7 @@ async function dbPatch(t,f,b){let q=sb.from(t).update(b);Object.entries(f).forEa
 let rtCh=null,pollT=null,rtN=0;
 /* Gerçek zamanlı kanal. Her abonelik benzersiz bir konu adı alır: eski kanalın "ayrıl" mesajı yenisini düşürmesin. */
 function startRT(roomId,cbs){
-  stopRT();
+  stopRT();rtCbs={roomId,cbs};
   setConn('wait');
   rtCh=sb.channel(`room:${roomId}:${Date.now().toString(36)}${++rtN}`)
     .on('postgres_changes',{event:'*',schema:'public',table:'players',filter:`room_id=eq.${roomId}`},()=>cbs.players?.())
@@ -1165,6 +1215,7 @@ function startRT(roomId,cbs){
   if(cbs.resync)pollT=setInterval(()=>cbs.resync().catch(()=>{}),cbs.every||3000);
 }
 function stopRT(){
+  rtCbs=null;
   if(pollT){clearInterval(pollT);pollT=null}
   if(rtCh){const ch=rtCh;rtCh=null;try{sb.removeChannel(ch)}catch(e){}}
 }
@@ -1174,6 +1225,119 @@ function setConn(st){
     el.lastChild.textContent=DEMO?'Demo':st==='ok'?'Canlı':st==='bad'?'Yeniden bağlanıyor':'Bağlanıyor';
   });
 }
+
+/* ═════ CİHAZ: titreşim, ekran, paylaşım, geri tuşu, bağlantı ═════
+   Capacitor içinde yerel eklentiler, tarayıcıda web API'leri kullanılır. */
+const CAP=window.Capacitor,NATIVE=!!CAP?.isNativePlatform?.();
+const plug=n=>CAP?.Plugins?.[n];
+function buzz(kind){
+  if(!PREFS.haptics)return;
+  try{
+    const H=plug('Haptics');
+    if(NATIVE&&H){kind==='notify'?H.notification({type:'SUCCESS'}):H.impact({style:kind==='stamp'?'HEAVY':'MEDIUM'});return}
+    navigator.vibrate?.(kind==='stamp'?40:kind==='end'?[30,60,30]:15);
+  }catch(e){}
+}
+let wakeLock=null;
+async function keepAwake(on){
+  try{
+    const K=plug('KeepAwake');
+    if(NATIVE&&K){on?await K.keepAwake():await K.allowSleep();return}
+    if(on){if(!wakeLock&&navigator.wakeLock&&document.visibilityState==='visible'){wakeLock=await navigator.wakeLock.request('screen');wakeLock.addEventListener('release',()=>{wakeLock=null})}}
+    else if(wakeLock){await wakeLock.release();wakeLock=null}
+  }catch(e){}
+}
+const INVITE_BASE='https://freedomwarriorx86.github.io/toplum-sim/';
+window.shareCode=async function(){
+  if(!S.roomCode)return;
+  const c=CITIES[S.selectedCity]||CITIES.karadut,url=`${INVITE_BASE}?kod=${S.roomCode}`;
+  const text=`${c.acc} birlikte yönetelim. Toplum Simülasyonu oda kodu: ${S.roomCode}`;
+  try{
+    const Sh=plug('Share');
+    if(NATIVE&&Sh){await Sh.share({title:'Toplum Simülasyonu daveti',text,url,dialogTitle:'Daveti gönder'});return}
+    if(navigator.share){await navigator.share({title:'Toplum Simülasyonu',text,url});return}
+  }catch(e){if(e?.name==='AbortError'||/cancel/i.test(e?.message||''))return}
+  try{await navigator.clipboard.writeText(`${text}\n${url}`);toast('Davet metni ve bağlantı kopyalandı.','success')}
+  catch(e){toast(`Kodu elle paylaş: ${S.roomCode}`)}
+};
+/* Arka plandan dönünce ya da bağlantı gelince kanal yeniden kurulur ve masa hemen okunur */
+let rtCbs=null,hiddenAt=0;
+function resumeSync(){
+  if(!rtCbs||!S.roomId||S.ended)return;
+  if(DEMO){rtCbs.cbs.resync?.().catch(()=>{});return}
+  startRT(rtCbs.roomId,rtCbs.cbs);
+}
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='hidden'){hiddenAt=Date.now();return}
+  if(Date.now()-hiddenAt>3000)resumeSync();
+  if(document.querySelector('#s-game.active,#s-wait.active'))keepAwake(true);
+});
+function setNet(on){
+  document.body.classList.toggle('offline',!on);
+  if(!on){setConn('bad');return}
+  if(S.roomId&&!DEMO)toast('Bağlantı geri geldi, masa güncellendi.','success');
+  resumeSync();
+}
+window.addEventListener('online',()=>setNet(true));
+window.addEventListener('offline',()=>setNet(false));
+/* Android geri tuşu: önce açık pencereyi kapatır, sonra bir önceki ekrana döner, oyundayken çıkış onayını açar */
+if(NATIVE)plug('App')?.addListener('backButton',()=>{
+  const open=[...document.querySelectorAll('.card-overlay.open')].pop();
+  if(open){
+    if(open.id==='card-overlay'){if(!$('stamp').classList.contains('hit'))closeCard()}
+    else if(open.id==='settings-overlay')closeSettings();
+    else if(open.id==='mission-overlay')closeMissionOverlay();
+    else if(open.id==='help-overlay')closeHelp();
+    else open.classList.remove('open');
+    return;
+  }
+  const cur=document.querySelector('.screen.active')?.id;
+  if(cur==='s-mode'){goTo('s-name');return}
+  if(cur==='s-city'){goTo(DEMO?'s-name':'s-mode');return}
+  if(cur==='s-lobby'){lobbyBack();return}
+  if(cur==='s-name'||cur==='s-end'){plug('App').exitApp();return}
+  openSettings();
+});
+
+/* ═════ NASIL OYNANIR ═════ */
+const HELP=[
+  ['İlçeyi birlikte yönetiyorsunuz','Masadaki herkes aynı ilçede farklı bir makamda oturur: belediye başkanı, sağlık müdürü, iş insanı ve diğerleri. Halk konforu; sağlık, eğitim, güvenlik, ulaşım ve toplumsal skorların ağırlıklı ortalamasıdır.'],
+  ['Kart çek, karar ver','Her turda herkes gündemden bir kart çeker. Kriz kartında üç seçenekten birini mühürlersin; olay kartı kendiliğinden işler. Masadaki herkes kartını oynamadan yeni tura geçilmez.'],
+  ['Yetkilerini kullan','Rolünün eylem puanı var. Oyun boyunca istediğin an özel yetkilere harcarsın; harcanan puan geri gelmez. Yetkiyi kullanmak için ona iki kez dokun.'],
+  ['Gizli görevin','Başta üç dosyadan birini seçersin. Görevini kimse bilmez: şehri kurtarmak da, bir alanı çökertmek de görev olabilir. Görevim düğmesindeki nokta yeşilse oyun şimdi bitse kazanırdın.'],
+  ['Dönem nasıl biter','Herkes kartlarını bitirince dönem kapanır ve tüm görevler açılır. Belediye kasası eksiye düşerse iflas, yolsuzluk şüphesi 100 olursa savcılık soruşturması oyunu erkenden bitirir.'],
+];
+let helpI=0;
+function renderHelp(){
+  const[t,b]=HELP[helpI];$('help-title').textContent=t;$('help-body').textContent=b;$('help-step').textContent=`${helpI+1}/${HELP.length}`;
+  $('help-dots').innerHTML=HELP.map((_,i)=>`<i class="${i<=helpI?'on':''}"></i>`).join('');
+  $('help-prev').disabled=helpI===0;$('help-next').textContent=helpI===HELP.length-1?'Anladım, başla':'İleri';
+}
+window.openHelp=function(){helpI=0;renderHelp();$('help-overlay').classList.add('open')};
+window.closeHelp=function(e){
+  if(e&&e.target.id!=='help-overlay')return;
+  $('help-overlay').classList.remove('open');try{localStorage.setItem('tsim_help_seen','1')}catch(x){}
+};
+$('help-prev').onclick=()=>{if(helpI>0){helpI--;renderHelp()}};
+$('help-next').onclick=()=>{if(helpI<HELP.length-1){helpI++;renderHelp();sfx('click')}else closeHelp()};
+function helpOnce(){let seen='1';try{seen=localStorage.getItem('tsim_help_seen')}catch(e){}if(!seen)setTimeout(openHelp,700)}
+
+/* ═════ KARİYER ═════ */
+const CK='tsim_career';
+function career(){try{return JSON.parse(localStorage.getItem(CK))||{games:0,wins:0,rooms:[]}}catch(e){return{games:0,wins:0,rooms:[]}}}
+function recordCareer(roomId,won,roleKey){
+  try{
+    const c=career();if(!roomId||c.rooms.includes(roomId))return c;
+    c.games++;if(won)c.wins++;c.roles=c.roles||{};if(roleKey)c.roles[roleKey]=(c.roles[roleKey]||0)+1;
+    c.rooms=[...c.rooms,roomId].slice(-40);localStorage.setItem(CK,JSON.stringify(c));return c;
+  }catch(e){return null}
+}
+function careerText(c){
+  if(!c?.games)return'';
+  const fav=Object.entries(c.roles||{}).sort((a,b)=>b[1]-a[1])[0],r=fav&&ROLES.find(x=>x.key===fav[0]);
+  return`Kariyerin: ${c.games} dönem, ${c.wins} gizli görev başarısı (%${Math.round(100*c.wins/c.games)})`+(r?`. En çok ${r.name} oldun.`:'.');
+}
+function renderCareer(){const el=$('career-line');if(el)el.textContent=careerText(career())}
 
 /* ═════ OTURUM ═════ */
 const SK='tsim_v3';
@@ -1206,6 +1370,7 @@ function goTo(id){
   setTimeout(startLive,60);
   if(id==='s-lobby')updateLobbyUI();
   if(id==='s-city')requestAnimationFrame(()=>Object.keys(CITIES).forEach(k=>drawPlan($('cp-'+k),k,CITIES[k].start)));
+  if(id==='s-name')renderCareer();
   if(id==='s-name')requestAnimationFrame(()=>{drawPlan($('hero-plan'),'karadut',CITIES.karadut.start);live($('hero-plan'),'karadut',CITIES.karadut.start)});
 }
 window.goTo=goTo;
@@ -1216,7 +1381,9 @@ $('btn-next-city').onclick=()=>{
   if(!name){toast('Önce adını yaz. Diğer oyuncular seni bu adla görecek.','error');$('input-name').focus();return}
   if(!sb&&!DEMO){toast('Sunucuya bağlanılamadı. Botlarla demo oyunu deneyebilirsin.','error');return}
   S.playerName=name;$('mode-name').textContent=name;
-  if(DEMO){S.mode='create';goTo('s-city')}else goTo('s-mode');
+  if(DEMO){S.mode='create';goTo('s-city')}
+  else if(S.inviteCode){S.mode='join';goTo('s-lobby');$('input-code').value=S.inviteCode;S.inviteCode=null;$('invite-note').hidden=true;$('btn-next-city').textContent='Devam et';$('btn-join').click()}
+  else goTo('s-mode');
 };
 window.chooseMode=function(m){
   S.mode=m;
@@ -1327,7 +1494,7 @@ $('btn-join').onclick=async()=>{
 /* Odadan / oyundan çık. Bekleme odasında kurucu çıkarsa oda kapanır; oyunda 2'den az kişi kalırsa oyun biter. */
 window.leaveRoom=async function(){
   const roomId=S.roomId,playerId=S.playerId,wasHost=S.isHost,wasDev=!!S.dev;
-  stopRT();BOTS=[];closeSettings();closeCard();$('mission-overlay').classList.remove('open');
+  stopRT();BOTS=[];closeSettings();closeCard();$('mission-overlay').classList.remove('open');keepAwake(false);
   try{
     if(playerId)await sb.from('players').delete().eq('id',playerId);
         if(roomId){
@@ -1352,6 +1519,8 @@ function initSettings(){
   $('sw-sfx').onclick=()=>{PREFS.sfx=!PREFS.sfx;setSwitch('sw-sfx',PREFS.sfx);savePrefs();sfx('click')};
   $('sw-music').onclick=()=>{PREFS.music=!PREFS.music;setSwitch('sw-music',PREFS.music);savePrefs();if(PREFS.music)toast('Müzik henüz eklenmedi. Tercihin kaydedildi.')};
   $('sw-motion').onclick=()=>{PREFS.motion=!PREFS.motion;setSwitch('sw-motion',PREFS.motion);savePrefs();if(PREFS.motion)startLive();else clearLive()};
+  setSwitch('sw-haptic',PREFS.haptics);
+  $('sw-haptic').onclick=()=>{PREFS.haptics=!PREFS.haptics;setSwitch('sw-haptic',PREFS.haptics);savePrefs();buzz('stamp')};
   $('set-vol').oninput=e=>{PREFS.volume=e.target.value/100;$('vol-txt').textContent=`%${e.target.value}`;savePrefs()};
   $('set-vol').onchange=()=>sfx('click');
   $('set-copy').onclick=async()=>{try{await navigator.clipboard.writeText(S.roomCode);toast('Kod kopyalandı.','success')}catch(e){toast(`Kopyalanamadı. Kod: ${S.roomCode}`)}};
@@ -1375,7 +1544,7 @@ window.openSettings=function(){
   $('settings-overlay').classList.add('open');
 };
 window.closeSettings=function(e){if(!e||e.target.id==='settings-overlay')$('settings-overlay').classList.remove('open')};
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeSettings();closeMissionOverlay()}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeSettings();closeMissionOverlay();if($('help-overlay').classList.contains('open'))closeHelp()}});
 
 /* ═════ BEKLEME ═════ */
 async function enterWait(){
@@ -1384,6 +1553,7 @@ async function enterWait(){
   goTo('s-wait');
   try{const r=(await dbGet('rooms',{id:S.roomId}))[0];if(r){S.maxPlayers=r.max_players;S.selectedCity=r.city||S.selectedCity;$('wait-badge').innerHTML=cityChip(S.selectedCity)}}catch(e){}
   await loadPlayers();
+  keepAwake(true);
   startRT(S.roomId,{players:()=>loadPlayers(),rooms:()=>checkRoomRT(),gs:()=>{},resync:async()=>{await loadPlayers();await checkRoomRT()},every:2500});
 }
 $('btn-copy-code').onclick=async()=>{
@@ -1557,7 +1727,8 @@ async function enterGame(){
   await refreshGS();await refreshFeed();requestAnimationFrame(redrawVisible);
   startRT(S.roomId,{acts:S.actionsOK,players:()=>refreshGS(),gs:()=>refreshGS(),rooms:()=>onRoomChange(),played:()=>refreshFeed(),
     resync:async()=>{if(S.ended)return;await refreshGS();await refreshFeed();await onRoomChange()},every:4000});
-  if(room?.status==='ended')showEnd();
+  keepAwake(true);
+  if(room?.status==='ended')showEnd();else helpOnce();
   }
 async function onRoomChange(){const r=(await dbGet('rooms',{id:S.roomId}))[0];if(!r||r.status==='ended')showEnd()}
 async function refreshGS(){
@@ -1588,6 +1759,9 @@ function renderGS(gs,prev){
     COMFORT.forEach(c=>{const d=gs[c.key]-prev[c.key];if(d)floatAt('game-plan',c.key,signed(d),d>0)});
     const dt=gs.treasury-prev.treasury;if(dt)floatAt('game-plan','treasury',(dt>0?'+':'−')+'₺'+Math.round(Math.abs(dt)/1000)+'b',dt>0);
   }
+  if(S.myMission){const ok=missionWon(S.myMission,gs),ch=$('mission-chip');
+    ch.classList.toggle('on-track',ok);ch.classList.toggle('off-track',!ok);
+    ch.setAttribute('aria-label',`Görevim: ${ok?'şu an hedeftesin':'henüz hedefte değilsin'}`)}
   clearTimeout(flashT);if(changed.size)flashT=setTimeout(()=>drawPlan(cv,S.selectedCity,S.gameState),1100);
 }
 function renderPlayers(pl){
@@ -1671,13 +1845,21 @@ async function refreshFeed(){
   }).reverse().join(''):'<div class="feed-empty">Henüz karar alınmadı. İlk kartı sen çek.</div>';
   renderRound();
 }
+/* Tur sistemi: masada senden geride kalan varsa yeni kart çekemezsin */
+function roundInfo(){
+  const pl=S.players||[],pc=S.played||[],n=id=>pc.filter(p=>p.player_id===id).length;
+  const mine=n(S.playerId),behind=pl.filter(p=>p.id!==S.playerId&&n(p.id)<mine);
+  return{mine,behind,canDraw:!behind.length};
+}
 function renderRound(){
   const k=myCpp(),ids=new Set((S.players||[]).map(p=>p.id));
-  const pc=S.played||[],mine=pc.filter(p=>p.player_id===S.playerId).length,total=(S.players?.length||1)*k,done=pc.filter(p=>ids.has(p.player_id)).length;
-  $('round-lbl').innerHTML=`Kartların <b>${mine}/${k}</b>, meclis <b>${done}/${total}</b>`;
+  const pc=S.played||[],total=(S.players?.length||1)*k,done=pc.filter(p=>ids.has(p.player_id)).length;
+  const{mine,behind,canDraw}=roundInfo(),out=mine>=k;
+  $('round-lbl').innerHTML=`Tur <b>${Math.min(mine+1,k)}/${k}</b>, meclis <b>${done}/${total}</b> karar`;
   $('round-pips').innerHTML=Array.from({length:k},(_,i)=>`<i class="round-pip${i<mine?' done':''}"></i>`).join('');
-  const out=mine>=k;$('btn-draw').disabled=out||S.ended;
-  $('draw-txt').textContent=out?'Kartların bitti, diğerleri oynuyor':'Gündemden kart çek';
+  $('btn-draw').disabled=out||S.ended||!canDraw;
+  const names=behind.map(p=>p.name).slice(0,2).join(', ')+(behind.length>2?` ve ${behind.length-2} kişi`:'');
+  $('draw-txt').textContent=out?'Kartların bitti, diğerleri oynuyor':!canDraw?`${names} bu turu bitirsin`:'Gündemden kart çek';
   renderActs();
 }
 
@@ -1736,8 +1918,10 @@ async function performAction(a,playerId){
 /* ═════ KART SAYFASI ═════ */
 $('btn-draw').onclick=async()=>{
   try{
-    const played=await dbGet('played_cards',{room_id:S.roomId,player_id:S.playerId});
-    if(played.length>=myCpp()){toast('Kartların bitti. Diğer oyuncular bekleniyor.');return}
+    S.played=await dbGet('played_cards',{room_id:S.roomId});
+    const ri=roundInfo();
+    if(ri.mine>=myCpp()){toast('Kartların bitti. Diğer oyuncular bekleniyor.');renderRound();return}
+    if(!ri.canDraw){toast(`Yeni tura geçmek için ${ri.behind.map(p=>p.name).join(', ')} bekleniyor.`);renderRound();return}
     const card=await pickCardFor(S.playerId);
     if(!card){toast('Destede kart kalmadı.','error');return}
     showCardModal(card);
@@ -1850,8 +2034,29 @@ async function showEnd(){
     return`<div class="ep ${won?'win':'lose'}"><div class="nm">${esc(p.name)}${p.id===S.playerId?' (sen)':''}<small>${esc(r?.name||'')}</small></div>
       <div class="res">${won?'BAŞARDI':'BAŞARAMADI'}</div><div class="ms"><b>${esc(m?.title||'Görev seçmedi')}</b>. ${esc(missionText(m))}</div></div>`;
   }).join('');
-  stopRT();
+  try{await loadActs()}catch(e){}
+  renderHighlights(played,S.acts||[],pl||[]);
+  if(!S.dev){const c=recordCareer(S.roomId,!!me?.won,S.myRole?.key);$('end-career').textContent=careerText(c)}
+  stopRT();keepAwake(false);
   clearSess();goTo('s-end');sfx('end');requestAnimationFrame(()=>drawPlan($('end-plan'),S.selectedCity,gs));
+}
+/* Dönemin kararları: kimin kararı halk konforunu en çok etkiledi (olay kartları şans sayılır, dahil edilmez) */
+const impactOf=fx=>COMFORT.reduce((a,c)=>a+c.w*(fx[c.key]||0),0);
+function renderHighlights(played,acts,pl){
+  const cards=S.cardMap||{},items=[];
+  played.forEach(p=>{const c=cards[p.card_id];if(!c||c.type!=='crisis')return;const o=(c.options||[])[p.chosen_option];if(!o)return;
+    const fx=deltasFor(c,p.chosen_option);items.push({pid:p.player_id,label:`${c.title}: ${o.label}`,fx,v:impactOf(fx)})});
+  acts.forEach(a=>{const d=findAction(a.action);if(d)items.push({pid:a.player_id,label:`Yetki: ${d.label}`,fx:d.fx,v:impactOf(d.fx)})});
+  const box=$('end-highlights');if(!items.length){box.hidden=true;return}box.hidden=false;
+  const nm=id=>id===S.playerId?'Sen':esc(pl.find(p=>p.id===id)?.name||'Ayrılan oyuncu');
+  const best=items.reduce((a,b)=>b.v>a.v?b:a),worst=items.reduce((a,b)=>b.v<a.v?b:a);
+  const row=(k,cls,it)=>`<div class="hl"><div class="k ${cls}">${k}</div><div><b>${nm(it.pid)}</b>, ${esc(it.label)}${fxChips(it.fx,true)}</div></div>`;
+  const per=pl.map(p=>{const mine=items.filter(i=>i.pid===p.id);return{p,n:mine.length,v:mine.reduce((a,i)=>a+i.v,0)}}).sort((a,b)=>b.v-a.v);
+  const max=Math.max(1,...per.map(x=>Math.abs(x.v)));
+  box.innerHTML=`<div class="sheet-h"><h3>Dönemin kararları</h3><span class="small">Halk konforuna etkisi</span></div>`+
+    (best.v>0?row('En iyi karar','up',best):'')+(worst.v<0&&worst!==best?row('En ağır karar','down',worst):'')+
+    per.map(({p,n,v})=>{const w=Math.abs(v)/max*50,col=v>=0?C.park:C.ticari;
+      return`<div class="hl-bar"><div>${nm(p.id)} <small>${n} karar</small></div><div class="tr"><i style="${v>=0?`left:50%`:`right:50%`};width:${w}%;background:${col}"></i></div><div class="v" style="color:${col}">${v>0?'+':v<0?'−':'±'}${Math.abs(v).toFixed(1)}</div></div>`}).join('');
 }
 $('btn-end-again').onclick=()=>{
     if(DEMO){sb=createMockClient(DEMO_SEED);BOTS=[]}
@@ -1866,6 +2071,13 @@ window.addEventListener('DOMContentLoaded',async()=>{
     enterDemo();$('btn-demo').style.display='none';
     $('demo-note').textContent='Demo sürümü: odana bot oyuncular katılır ve sen oynadıkça onlar da kart oynar.';
   }
+  const kod=(new URLSearchParams(location.search).get('kod')||'').trim().toUpperCase();
+  if(/^[A-Z0-9]{6}$/.test(kod)&&!DEMO){
+    S.inviteCode=kod;$('input-code').value=kod;
+    $('invite-note').hidden=false;$('invite-note').innerHTML=`<b>${esc(kod)}</b> kodlu odaya davet edildin. Adını yaz, doğrudan masaya otur.`;
+    $('btn-next-city').textContent='Odaya katıl';
+  }
+  renderCareer();
   const ok=await restoreSess();
   initSettings();
   if(!ok){goTo('s-name');requestAnimationFrame(()=>animatePlan($('hero-plan'),'karadut',CITIES.karadut.start,1600))}
