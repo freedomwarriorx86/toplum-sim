@@ -17,11 +17,11 @@ const N=+process.argv[3]||3000;
       S.corruption=cor;S.selectedCity=city;
       for(let it=0;it<N;it++){
         S.players=Array(n).fill({});S.rounds=R;const g={...CITIES[city].start,suspicion:0};const ms=sh(missions.filter(missionOk)).slice(0,n);const roles=sh(ROLES.map(x=>x.key)).slice(0,n);
-        const pl=roles.map((role,i)=>({role,m:ms[i],ep:ROLES.find(x=>x.key===role).ep}));
+        const pl=roles.map((role,i)=>({role,m:ms[i],ep:EP_START,cap:ROLES.find(x=>x.key===role).ep}));
         const deck=[...sh(cards),...sh(cards)];let played=0,end='Dönem sona erdi',k=R;
-        outer:for(let t=0;t<k;t++)for(const P of pl){
+        outer:for(let t=0;t<k;t++)for(const P of pl){if(t>0&&P.lt!==t){P.lt=t;P.ep=Math.min(P.cap,P.ep+EP_GAIN)}
           const c=deck[played++%deck.length];const o=hasOpts(c)?botChoose(c,P.m):null;{S.selectedCity=city;const d=upkeep(deltasFor(c,o),randWear());apply(g,d,cor)}
-          if(Math.random()<.55){const opts=actionsFor(P.role).filter(a=>a.ep<=P.ep);if(opts.length){const a=opts[botChoose({options:opts.map(o=>({effects:o.fx,cost:o.fx.treasury||0}))},P.m)];if(missionGain(a.fx,P.m)>=0){P.ep-=a.ep;apply(g,a.fx,cor)}}}
+          if(t>0&&!P.g){};P.g=0;if(Math.random()<.6){const opts=[...actionsFor(P.role)].sort(()=>Math.random()-.5).slice(0,OFFER_N).filter(a=>a.ep<=P.ep);if(opts.length){const a=opts[botChoose({options:opts.map(o=>({effects:o.fx,cost:o.fx.treasury||0}))},P.m)];if(missionGain(a.fx,P.m)>=0){P.ep-=a.ep;apply(g,a.fx,cor)}}}
           if(g.treasury<0){end='İflas';break outer}if(cor&&g.suspicion>=100){end='Soruşturma';break outer}
         }
         r.games++;r.end[end]=(r.end[end]||0)+1;r.ov+=overall(g);

@@ -407,6 +407,20 @@ body.is-demo .demo-badge{display:inline-block}
 .upkeep{margin:0 18px 18px;padding-top:10px;border-top:1px dashed var(--rule);font-size:13px;color:var(--ink-3)}
 .react-h{margin-top:16px;font-family:var(--display);font-weight:700;font-size:16px}
 .react-h+.opts{margin-top:8px}
+.board-tabs{margin:16px 0 12px;display:grid;grid-template-columns:repeat(4,1fr)}
+.board-tabs button{font-size:13px;padding-left:4px;padding-right:4px}
+.lb-row{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--rule-2)}
+.lb-row:last-child{border-bottom:0}
+.lb-row .rk{font-family:var(--display);font-weight:800;font-size:18px;color:var(--ink-3);text-align:center}
+.lb-row:nth-child(-n+3) .rk{color:var(--konut)}
+.lb-row.me{background:rgba(233,169,28,.12)}
+.lb-row b{display:block;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lb-row small{display:block;font-size:12px;color:var(--ink-3);line-height:1.3}
+.lb-row .val{font-family:var(--display);font-weight:800;font-size:18px;font-variant-numeric:tabular-nums;text-align:right}
+.lb-row .val small{font-family:var(--body,inherit);font-weight:600}
+.badges{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;background:var(--ink);color:var(--sheet);white-space:nowrap}
+.act-note{padding:10px 14px;font-size:12px;color:var(--ink-3);border-top:1px solid var(--rule-2)}
 .ep-meter{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-2);font-variant-numeric:tabular-nums}
 .ep-meter i{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--ink)}
 .ep-meter i.on{background:var(--ink)}
@@ -577,10 +591,22 @@ body.is-demo .demo-badge{display:inline-block}
   </div>
   <div class="extra-entry">
     <button class="link" type="button" onclick="openHelp()">Nasıl oynanır?</button>
+    <button class="link" type="button" onclick="openBoard()">Liderlik tablosu</button>
     <span class="career" id="career-line"></span>
   </div>
   </div>
   </div>
+</main>
+
+<!-- LİDERLİK TABLOSU -->
+<main class="screen narrow" id="s-board">
+  <div class="topbar">
+    <button class="back" type="button" onclick="boardBack()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>Geri</button>
+  </div>
+  <h2 class="h">Liderlik tablosu</h2>
+  <p class="small" style="margin-top:6px">Bitmiş gerçek oyunlardan derlenir. Demo ve geliştirici oyunları sayılmaz.</p>
+  <div class="count-seg board-tabs" id="board-tabs" role="tablist" aria-label="Liderlik kategorisi"></div>
+  <section class="sheet" id="board-list"><div class="feed-empty">Yükleniyor…</div></section>
 </main>
 
 <!-- MOD SEÇİMİ -->
@@ -810,7 +836,7 @@ body.is-demo .demo-badge{display:inline-block}
     </div>
 
     <section class="sheet acts" id="acts" hidden>
-      <div class="sheet-h"><h3>Yetkilerin</h3><span class="ep-meter" id="ep-meter"></span></div>
+      <div class="sheet-h"><h3 id="acts-h">Yetkilerin</h3><span class="ep-meter" id="ep-meter"></span></div>
       <div class="act-list" id="act-list"></div>
     </section>
     </div>
@@ -840,6 +866,7 @@ body.is-demo .demo-badge{display:inline-block}
   <section class="sheet" style="margin-top:14px" id="end-players"></section>
   <div class="stack">
     <button class="btn btn-ink" id="btn-end-again" type="button">Yeni oyun kur</button>
+    <button class="btn btn-line" type="button" onclick="openBoard()">Liderlik tablosu</button>
   </div>
   <p class="small career-end" id="end-career"></p>
   </div></div>
@@ -953,42 +980,66 @@ const ROLES=[
   {key:'journalist',name:'Gazeteci',color:'#C5541A',ep:4,brief:'Haber ve ifşa',desc:'Kimseye bağlı değilsin. Kirli işleri ortaya çıkarabilir ya da görmezden gelebilirsin. 4 eylem puanın var.'},
 ];
 const BASE_ROLES=['mayor','health_director','businessman'];
-/* Rol yetkileri: her rol oyun boyunca eylem puanını (ROLES[].ep) bu aksiyonlara harcar.
-   corr:true olanlar yalnızca yolsuzluk modu açıkken anlamlıdır. */
+/* Rol yetkileri havuzu: her tur bu havuzdan rastgele 3 yetki teklif edilir (aynı yetki birkaç turda bir yeniden çıkabilir).
+   corr:true olanlar yalnızca yolsuzluk modu açıkken havuza girer. */
 const ACTIONS={
   mayor:[
     {key:'ek_butce',label:'Valilikten ek ödenek iste',desc:'Kasa rahatlar, vergi artışı söylentisi halkı kızdırır.',ep:2,fx:{treasury:90000,social:-3}},
     {key:'halk_bulusmasi',label:'Halk buluşması yap',desc:'Mahalle mahalle gezip dertleri dinlersin.',ep:1,fx:{treasury:-10000,social:3}},
     {key:'tanidik_ihale',label:'Yol ihalesini tanıdığa ver',desc:'Kasaya prim girer, yollar özensiz yapılır.',ep:2,corr:true,fx:{treasury:50000,transport:-2,suspicion:10,businessman_cash:60000}},
+    {key:'park_acilisi',label:'Mahalle parkı aç',desc:'Boş arsa yeşile döner, çocuklar sokaktan kurtulur.',ep:2,fx:{treasury:-40000,health:2,social:2}},
+    {key:'kamulastirma',label:'Arsayı kamulaştır, yol aç',desc:'Trafik rahatlar, arsa sahibi iş insanı kızar.',ep:2,fx:{treasury:-50000,transport:3,businessman_cash:-60000}},
+    {key:'meclis',label:'Olağanüstü meclis toplantısı',desc:'Kararları şeffaf oylarsın, dedikodu azalır.',ep:1,fx:{social:1,suspicion:-4}},
   ],
   health_director:[
     {key:'tarama',label:'Ücretsiz sağlık taraması',desc:'Erken teşhis kampanyası başlatırsın.',ep:2,fx:{health:5,treasury:-35000}},
     {key:'nobet',label:'Nöbet düzenini sıkılaştır',desc:'Acil servis rahatlar, personel söylenir.',ep:1,fx:{health:2,social:-1}},
     {key:'denetim_gevset',label:'Denetimleri gevşet',desc:'Fabrikalar rahat nefes alır, şehir almaz.',ep:1,fx:{health:-4,businessman_cash:40000,suspicion:5}},
+    {key:'asi_gunu',label:'Mahalle aşı günü düzenle',desc:'Muhtarlıklarda gönüllü aşı masaları kurulur.',ep:1,fx:{health:2,treasury:-10000}},
+    {key:'evde_bakim',label:'Evde bakım ekibi kur',desc:'Yaşlılar ve engelliler evinde tedavi görür.',ep:2,fx:{health:3,social:2,treasury:-30000}},
+    {key:'ilac_ihalesi',label:'İlaç ihalesini tek firmaya ver',desc:'Kasa biraz kazanır, ilaç kalitesi düşer.',ep:1,corr:true,fx:{treasury:20000,health:-1,suspicion:6,businessman_cash:30000}},
   ],
   businessman:[
     {key:'sponsor',label:'Belediyeye sponsor ol',desc:'Kasandan belediyeye para aktarırsın, adın parlar.',ep:2,fx:{businessman_cash:-120000,treasury:100000,social:2}},
     {key:'kapasite',label:'Fabrika kapasitesini artır',desc:'İş ve kâr artar, baca daha çok tüter.',ep:2,fx:{businessman_cash:150000,social:2,health:-3}},
     {key:'lobi',label:'Mecliste lobi yap',desc:'Teşvik koparırsın, kulislerde adın geçer.',ep:1,corr:true,fx:{businessman_cash:80000,treasury:-40000,suspicion:7}},
+    {key:'istihdam',label:'Yerel istihdam fuarı aç',desc:'Gençlere iş bulursun, kasandan biraz eksilir.',ep:1,fx:{social:2,businessman_cash:-20000}},
+    {key:'burs',label:'Öğrencilere burs ver',desc:'Adın okul duvarlarına yazılır.',ep:1,fx:{education:2,businessman_cash:-40000}},
+    {key:'arsa',label:'Arsa spekülasyonu yap',desc:'Kira artar, mahalle söylenir, sen kazanırsın.',ep:2,corr:true,fx:{businessman_cash:120000,social:-2,suspicion:6}},
   ],
   police_chief:[
     {key:'devriye',label:'Gece devriyelerini artır',desc:'Sokaklar daha güvenli, mesai bütçesi şişer.',ep:1,fx:{security:3,treasury:-15000}},
     {key:'operasyon',label:'Büyük asayiş operasyonu',desc:'Suç düşer, mahallede gerginlik artar.',ep:2,fx:{security:6,social:-3,treasury:-20000}},
     {key:'dosya_kapat',label:'Soruşturma dosyasını kapat',desc:'Şüpheler söner, polise güven azalır.',ep:2,corr:true,fx:{suspicion:-12,security:-3}},
     {key:'devriye_kis',label:'Devriye bütçesini kıs',desc:'Kasa rahatlar, geceleri sokaklar tenhalaşır.',ep:1,fx:{security:-3,treasury:25000}},
+    {key:'trafik_denetimi',label:'Sıkı trafik denetimi',desc:'Kazalar azalır, sürücüler ceza yazılmasına kızar.',ep:1,fx:{transport:2,security:1,social:-1}},
+    {key:'toplum_polisligi',label:'Toplum polisliği başlat',desc:'Polis mahalleliyle çay içer, güven artar.',ep:2,fx:{security:3,social:2,treasury:-20000}},
   ],
   education_director:[
     {key:'etut',label:'Ücretsiz etüt programı',desc:'Hafta sonu okullar açık kalır.',ep:1,fx:{education:3,treasury:-15000}},
     {key:'veli',label:'Okul–veli seferberliği',desc:'Veliler okulları boyar, dernekler kurulur.',ep:2,fx:{education:3,social:3,treasury:-20000}},
     {key:'kadro_dondur',label:'Öğretmen kadrolarını dondur',desc:'Kasa nefes alır, sınıflar kalabalıklaşır.',ep:1,fx:{education:-4,treasury:30000}},
+    {key:'kodlama',label:'Kodlama kulüpleri aç',desc:'Okullarda robotik ve yazılım atölyeleri.',ep:1,fx:{education:2,treasury:-10000}},
+    {key:'beslenme',label:'Okul sütü ve beslenme',desc:'Öğrenciler tok karınla derse girer.',ep:2,fx:{health:2,education:2,treasury:-30000}},
+    {key:'ozel_okul',label:'Özel okula bina tahsis et',desc:'Devlet okulunun binası özel okula kiralanır.',ep:1,corr:true,fx:{education:-2,treasury:15000,businessman_cash:50000,suspicion:5}},
   ],
   journalist:[
     {key:'ifsa',label:'Yolsuzluk dosyası yayımla',desc:'Savcılık harekete geçer, halk öfkelenir.',ep:2,corr:true,fx:{suspicion:15,social:-2}},
     {key:'olumlu',label:'Olumlu haber yap',desc:'Gündemi yumuşatırsın.',ep:1,fx:{social:3,suspicion:-5}},
     {key:'saglik_haberi',label:'Hastane skandalını duyur',desc:'Bakanlık el atar, mahalle tedirgin olur.',ep:1,fx:{health:3,social:-2}},
+    {key:'egitim_dizisi',label:'Okulları anlatan haber dizisi',desc:'Öğretmenlere destek kampanyası başlar.',ep:1,fx:{education:2,social:1}},
+    {key:'trafik_haberi',label:'Trafik çilesini manşete taşı',desc:'Belediye yollara el atar, okur sinirlenir.',ep:1,fx:{transport:2,social:-1}},
+    {key:'karalama',label:'Rakibi karala',desc:'Kanıtsız iddialar ortalığı karıştırır.',ep:1,corr:true,fx:{suspicion:8,social:-1}},
   ],
 };
+/* EP her tur yenilenir: oyuna EP_START ile başlarsın, her yeni turda +EP_GAIN kazanırsın, birikim rolün EP sınırını (ROLES[].ep) aşamaz */
+const EP_START=2,EP_GAIN=1,OFFER_N=3;
 const actionsFor=role=>(ACTIONS[role]||[]).filter(a=>!a.corr||S.corruption);
+function offersFor(pid,roleKey,round){
+  const r=rng(`${S.roomId}|${pid}|${round}`),pool=[...actionsFor(roleKey)];
+  for(let i=pool.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]]}
+  return pool.slice(0,OFFER_N);
+}
 const findAction=key=>Object.values(ACTIONS).flat().find(a=>a.key===key);
 /* Oyuncu sayısı arttıkça kişi başı kart azalır; deste 24 kart */
 const cpp=n=>n<=3?6:n===4?5:4;
@@ -1375,6 +1426,7 @@ if(NATIVE)plug('App')?.addListener('backButton',()=>{
   if(cur==='s-mode'){goTo('s-name');return}
   if(cur==='s-city'){goTo(DEMO?'s-name':'s-mode');return}
   if(cur==='s-lobby'){lobbyBack();return}
+  if(cur==='s-board'){boardBack();return}
   if(cur==='s-name'||cur==='s-end'){plug('App').exitApp();return}
   openSettings();
 });
@@ -1836,14 +1888,15 @@ function botChoose(card,mission){
   return best;
 }
 async function botMaybeAct(b){
-  if(!S.actionsOK||S.ended||Math.random()<.45)return;
+  if(!S.actionsOK||S.ended||Math.random()<.4)return;
   const me=(await dbGet('players',{id:b.id}))[0];if(!me?.role)return;
-  await loadActs();const left=epLeft(b.id,me.role);
-  const opts=actionsFor(me.role).filter(a=>a.ep<=left);if(!opts.length)return;
+  await loadActs();S.played=await dbGet('played_cards',{room_id:S.roomId});
+  const st=epState(b.id,me.role);
+  const opts=offersFor(b.id,me.role,st.round).filter(a=>a.ep<=st.left);if(!opts.length)return;
   const i=botChoose({options:opts.map(o=>({effects:o.fx,cost:o.fx.treasury||0}))},b.mission);
   if(missionGain(opts[i].fx,b.mission)<0)return;
   const room=(await dbGet('rooms',{id:S.roomId}))[0];if(!room||room.status==='ended')return;
-  await performAction(opts[i],b.id);
+  await performAction(opts[i],b.id,st.round);
 }
 function scheduleBots(){
   BOTS.forEach((b,i)=>{
@@ -2090,22 +2143,27 @@ async function loadActs(){
   const{data,error}=await sb.from('role_actions').select('*').eq('room_id',S.roomId).order('created_at',{ascending:true});
   if(!error&&data)S.acts=data;return S.acts;
 }
-function epLeft(pid,roleKey){
-  const r=ROLES.find(x=>x.key===roleKey);
-  return Math.max(0,(r?.ep||0)-(S.acts||[]).filter(a=>a.player_id===pid).reduce((t,a)=>t+(a.cost||0),0));
+function playerRound(pid){const n=(S.played||[]).filter(p=>p.player_id===pid).length;return Math.min(n+1,myCpp())}
+function epState(pid,roleKey){
+  const r=ROLES.find(x=>x.key===roleKey),cap=r?.ep||4,round=playerRound(pid),spent={};
+  (S.acts||[]).filter(a=>a.player_id===pid).forEach(a=>{const k=a.round||1;spent[k]=(spent[k]||0)+(a.cost||0)});
+  let e=EP_START;for(let i=1;i<=round;i++){if(i>1)e=Math.min(cap,e+EP_GAIN);e-=spent[i]||0}
+  return{left:Math.max(0,e),cap,round,usedNow:spent[round]||0};
 }
 function renderActs(){
   const box=$('acts');if(!box)return;
   if(!S.actionsOK||!S.myRole){box.hidden=true;return}
   box.hidden=false;
-  const max=S.myRole.ep,left=epLeft(S.playerId,S.myRole.key);
-  $('ep-meter').innerHTML=`<span>Eylem puanı <b>${left}/${max}</b></span>`+Array.from({length:max},(_,i)=>`<i class="${i<left?'on':''}"></i>`).join('');
-  $('act-list').innerHTML=actionsFor(S.myRole.key).map(a=>{
-    const armed=S.armed===a.key,off=a.ep>left||S.ended||S.actBusy;
+  const st=epState(S.playerId,S.myRole.key),offers=offersFor(S.playerId,S.myRole.key,st.round);
+  const usedKeys=new Set((S.acts||[]).filter(a=>a.player_id===S.playerId&&(a.round||1)===st.round).map(a=>a.action));
+  $('acts-h').textContent=`Tur ${st.round} yetkileri`;
+  $('ep-meter').innerHTML=`<span>EP <b>${st.left}/${st.cap}</b></span>`+Array.from({length:st.cap},(_,i)=>`<i class="${i<st.left?'on':''}"></i>`).join('');
+  $('act-list').innerHTML=offers.map(a=>{
+    const armed=S.armed===a.key,used=usedKeys.has(a.key),off=used||a.ep>st.left||S.ended||S.actBusy;
     return`<button type="button" class="act${armed?' armed':''}" ${off?'disabled':''} onclick="useAction('${a.key}')">
-      <span class="al">${esc(a.label)}</span><span class="ae">${armed?'Onaylamak için tekrar dokun':`${a.ep} EP`}</span>
+      <span class="al">${esc(a.label)}</span><span class="ae">${used?'Bu tur kullanıldı':armed?'Onaylamak için tekrar dokun':`${a.ep} EP`}</span>
       <span class="ad">${esc(a.desc)}</span>${fxChips(a.fx,true)}</button>`;
-  }).join('');
+  }).join('')+`<p class="act-note">Yetkiler her tur havuzdan yeniden çekilir. Her yeni turda +${EP_GAIN} EP kazanırsın, en fazla ${st.cap} birikir.</p>`;
 }
 let armT;
 window.useAction=async function(key){
@@ -2118,18 +2176,20 @@ window.useAction=async function(key){
   const a=findAction(key);if(!a)return;
   S.actBusy=true;renderActs();
   try{
-    await loadActs();
-    if(epLeft(S.playerId,S.myRole.key)<a.ep){toast('Bu yetki için eylem puanın yetmiyor.','error');return}
-    await performAction(a,S.playerId);
+    await loadActs();S.played=await dbGet('played_cards',{room_id:S.roomId});
+    const st=epState(S.playerId,S.myRole.key);
+    if(!offersFor(S.playerId,S.myRole.key,st.round).some(x=>x.key===a.key)){toast('Bu yetki artık teklif edilmiyor, yeni tura geçildi.','error');return}
+    if(st.left<a.ep){toast('Bu yetki için eylem puanın yetmiyor.','error');return}
+    await performAction(a,S.playerId,st.round);
     sfx('stamp');toast(`Yetki kullanıldı: ${a.label}.`,'success');
     await refreshGS();await refreshFeed();
   }catch(e){toast('Yetki kullanılamadı: '+e.message,'error')}
   finally{S.actBusy=false;renderActs()}
 };
-async function performAction(a,playerId){
+async function performAction(a,playerId,round=1){
   const{error}=await sb.rpc('apply_card_effects',{p_room:S.roomId,p_delta:a.fx,p_corruption:!!S.corruption});
   if(error)throw new Error(error.message);
-  await dbPost('role_actions',{room_id:S.roomId,player_id:playerId,action:a.key,cost:a.ep});
+  await dbPost('role_actions',{room_id:S.roomId,player_id:playerId,action:a.key,cost:a.ep,round});
   await checkEnd();
 }
 
@@ -2209,8 +2269,8 @@ function metricValue(key,gs){return key==='overall'?overall(gs):gs[key]}
 /* Görev hedefleri ilçenin başlangıç değerine ve dönemde oynanacak toplam kart sayısına (T = oyuncu × tur) göre ayarlanır.
    Eşik = başlangıç + a + b·T. Katsayılar tools/balance-sim.js ile her görev ~%40–50 tutacak şekilde uyduruldu.
    ratio: kasanın başlangıca oranı, abs: sabit eşik (şüphe). Kural yoksa DB'deki target_value kullanılır. */
-const MISSION_RULE={M01:{a:-8,b:.21},M02:{a:-4,b:-.23},M03:{a:-4.6,b:.084},M04:{a:-4.6,b:-.425},M05:{a:12.5,b:.32},
-  M06:{ratio:[.9,.007]},M07:{abs:[-1,.18],corr:true},M08:{a:-5.5,b:.073},M09:{a:5,b:.064}};
+const MISSION_RULE={M01:{a:-8,b:.31},M02:{a:-5.4,b:-.09},M03:{a:-5.3,b:.15},M04:{a:-4,b:-.4},M05:{a:13.5,b:.36},
+  M06:{ratio:[.9,.007]},M07:{abs:[-1,.22],corr:true},M08:{a:-5.2,b:.13},M09:{a:4.6,b:.17}};
 const missionOk=m=>!MISSION_RULE[m?.code]?.corr||S.corruption!==false;
 const totalCards=()=>{const n=Math.max(2,S.players?.length||S.maxPlayers||2);return n*(S.rounds||cpp(n))};
 function missionTarget(m,cityKey=S.selectedCity){
@@ -2259,35 +2319,105 @@ async function showEnd(){
   $('end-metrics').innerHTML=`<thead><tr><th>Dönem raporu</th><th class="n">Başta</th><th class="n">Sonda</th><th class="n">Fark</th></tr></thead><tbody>`+
     row('Halk konforu',ov0,ov,false,'total')+COMFORT.map(c=>row(c.label,city.start[c.key],gs[c.key])).join('')+
     row('Belediye kasası',city.start.treasury,gs.treasury,true)+(S.corruption?row('Şüphe',0,gs.suspicion||0,false,'',true):'')+'</tbody>';
+  try{await loadActs()}catch(e){}
+  const ST=computeStats(played,S.acts||[],pl||[],res);
   $('end-players').innerHTML=`<div class="sheet-h"><h3>Gizli görevler açıldı</h3></div>`+res.map(({p,m,won})=>{
     const r=ROLES.find(x=>x.key===p.role);
     return`<div class="ep ${won?'win':'lose'}"><div class="nm">${esc(p.name)}${p.id===S.playerId?' (sen)':''}<small>${esc(r?.name||'')}</small></div>
-      <div class="res">${won?'BAŞARDI':'BAŞARAMADI'}</div><div class="ms"><b>${esc(m?.title||'Görev seçmedi')}</b>. ${esc(missionText(m))}</div></div>`;
+      <div class="res">${won?'BAŞARDI':'BAŞARAMADI'}</div><div class="ms"><b>${esc(m?.title||'Görev seçmedi')}</b>. ${esc(missionText(m))}${badgeHtml(ST.per[p.id]?.badges)}</div></div>`;
   }).join('');
-  try{await loadActs()}catch(e){}
-  renderHighlights(played,S.acts||[],pl||[]);
+  renderHighlights(ST,pl||[]);
+  saveResults(ST,res,gs);
   if(!S.dev){const c=recordCareer(S.roomId,!!me?.won,S.myRole?.key);$('end-career').textContent=careerText(c)}
   stopRT();keepAwake(false);
   clearSess();goTo('s-end');sfx('end');requestAnimationFrame(()=>drawPlan($('end-plan'),S.selectedCity,gs));
 }
-/* Dönemin kararları: kimin kararı halk konforunu en çok etkiledi (olay kartları şans sayılır, dahil edilmez) */
+/* Dönemin kararları ve "en"leri. Olay kartlarının taban etkisi şans sayılır; yalnızca oyuncunun seçtiği tepki ona yazılır. */
 const impactOf=fx=>COMFORT.reduce((a,c)=>a+c.w*(fx[c.key]||0),0);
-function renderHighlights(played,acts,pl){
+const BADGES={
+  gorev:{label:'Görev tamam',icon:'🎯'},halk:{label:'Halkın dostu',icon:'🤝'},karar:{label:'Dönemin kararı',icon:'⭐'},
+  kasa:{label:'Kasa bekçisi',icon:'🏦'},yetki:{label:'Yetki ustası',icon:'⚡'},kaos:{label:'Kaos ustası',icon:'🌪️'},
+};
+const badgeHtml=keys=>keys?.length?`<span class="badges">${keys.filter(k=>BADGES[k]).map(k=>`<span class="badge">${BADGES[k].icon} ${BADGES[k].label}</span>`).join('')}</span>`:'';
+function computeStats(played,acts,pl,res){
   const cards=S.cardMap||{},items=[];
   played.forEach(p=>{const c=cards[p.card_id];if(!c)return;const o=(c.options||[])[p.chosen_option];if(!o)return;
-    const fx=c.type==='crisis'?deltasFor(c,p.chosen_option):{treasury:o.cost||0,...(o.effects||{})};items.push({pid:p.player_id,label:`${c.title}: ${o.label}`,fx,v:impactOf(fx)})});
-  acts.forEach(a=>{const d=findAction(a.action);if(d)items.push({pid:a.player_id,label:`Yetki: ${d.label}`,fx:d.fx,v:impactOf(d.fx)})});
-  const box=$('end-highlights');if(!items.length){box.hidden=true;return}box.hidden=false;
-  const nm=id=>id===S.playerId?'Sen':esc(pl.find(p=>p.id===id)?.name||'Ayrılan oyuncu');
-  const best=items.reduce((a,b)=>b.v>a.v?b:a),worst=items.reduce((a,b)=>b.v<a.v?b:a);
-  const row=(k,cls,it)=>`<div class="hl"><div class="k ${cls}">${k}</div><div><b>${nm(it.pid)}</b>, ${esc(it.label)}${fxChips(it.fx,true)}</div></div>`;
-  const per=pl.map(p=>{const mine=items.filter(i=>i.pid===p.id);return{p,n:mine.length,v:mine.reduce((a,i)=>a+i.v,0)}}).sort((a,b)=>b.v-a.v);
-  const max=Math.max(1,...per.map(x=>Math.abs(x.v)));
-  box.innerHTML=`<div class="sheet-h"><h3>Dönemin kararları</h3><span class="small">Halk konforuna etkisi</span></div>`+
-    (best.v>0?row('En iyi karar','up',best):'')+(worst.v<0&&worst!==best?row('En ağır karar','down',worst):'')+
-    per.map(({p,n,v})=>{const w=Math.abs(v)/max*50,col=v>=0?C.park:C.ticari;
-      return`<div class="hl-bar"><div>${nm(p.id)} <small>${n} karar</small></div><div class="tr"><i style="${v>=0?`left:50%`:`right:50%`};width:${w}%;background:${col}"></i></div><div class="v" style="color:${col}">${v>0?'+':v<0?'−':'±'}${Math.abs(v).toFixed(1)}</div></div>`}).join('');
+    const fx=c.type==='crisis'?deltasFor(c,p.chosen_option):{treasury:o.cost||0,...(o.effects||{})};
+    items.push({pid:p.player_id,label:`${c.title}: ${o.label}`,fx,v:impactOf(fx)})});
+  acts.forEach(a=>{const d=findAction(a.action);if(d)items.push({pid:a.player_id,label:`Yetki: ${d.label}`,fx:d.fx,v:impactOf(d.fx),act:a.cost})});
+  const per={};pl.forEach(p=>per[p.id]={p,n:0,v:0,cash:0,ep:0,best:null,badges:[]});
+  items.forEach(i=>{const x=per[i.pid];if(!x)return;x.n++;x.v+=i.v;x.cash+=i.fx.treasury||0;if(i.act)x.ep+=i.act;if(!x.best||i.v>x.best.v)x.best=i});
+  const list=Object.values(per),top=(f,pos=true)=>{const sorted=[...list].sort((a,b)=>pos?f(b)-f(a):f(a)-f(b));const w=sorted[0];return w&&(pos?f(w)>0:f(w)<0)?w:null};
+  (res||[]).forEach(r=>{if(r.won&&per[r.p.id])per[r.p.id].badges.push('gorev')});
+  const best=items.length?items.reduce((a,b)=>b.v>a.v?b:a):null,worst=items.length?items.reduce((a,b)=>b.v<a.v?b:a):null;
+  [[top(x=>x.v),'halk'],[best&&best.v>0?per[best.pid]:null,'karar'],[top(x=>x.cash),'kasa'],[top(x=>x.ep),'yetki'],[top(x=>x.v,false),'kaos']]
+    .forEach(([w,k])=>{if(w&&!w.badges.includes(k))w.badges.push(k)});
+  return{items,per,best,worst};
 }
+function renderHighlights(ST,pl){
+  const{items,per,best,worst}=ST,box=$('end-highlights');
+  if(!items.length){box.hidden=true;return}box.hidden=false;
+  const nm=id=>id===S.playerId?'Sen':esc(pl.find(p=>p.id===id)?.name||'Ayrılan oyuncu');
+  const row=(k,cls,it)=>`<div class="hl"><div class="k ${cls}">${k}</div><div><b>${nm(it.pid)}</b>, ${esc(it.label)}${fxChips(it.fx,true)}</div></div>`;
+  const list=Object.values(per).sort((a,b)=>b.v-a.v),max=Math.max(1,...list.map(x=>Math.abs(x.v)));
+  box.innerHTML=`<div class="sheet-h"><h3>Dönemin enleri</h3><span class="small">Halk konforuna etkisi</span></div>`+
+    (best.v>0?row('En iyi karar','up',best):'')+(worst.v<0&&worst!==best?row('En ağır karar','down',worst):'')+
+    list.map(({p,n,v,badges})=>{const w=Math.abs(v)/max*50,col=v>=0?C.park:C.ticari;
+      return`<div class="hl-bar"><div>${nm(p.id)} <small>${n} karar</small>${badgeHtml(badges.filter(b=>b!=='gorev'))}</div><div class="tr"><i style="${v>=0?`left:50%`:`right:50%`};width:${w}%;background:${col}"></i></div><div class="v" style="color:${col}">${v>0?'+':v<0?'−':'±'}${Math.abs(v).toFixed(1)}</div></div>`}).join('');
+}
+/* Sonuçları liderlik tablosuna yaz. Her istemci tüm masayı yazar; (room_id, player_id) tekil olduğundan kopyalar yok sayılır. */
+async function saveResults(ST,res,gs){
+  if(DEMO||S.dev||!SB_REAL||!S.roomId)return;
+  const rows=res.map(({p,m,won})=>{const x=ST.per[p.id]||{v:0,ep:0,best:null,badges:[]};
+    return{room_id:S.roomId,player_id:p.id,name:p.name,role:p.role,city:S.selectedCity,rounds:myCpp(),players:res.length,
+      mission_code:m?.code||null,won,impact:+x.v.toFixed(2),best_label:x.best?.label||null,best_impact:x.best?+x.best.v.toFixed(2):null,badges:x.badges,ep_spent:x.ep}});
+  try{const{error}=await SB_REAL.from('game_results').upsert(rows,{onConflict:'room_id,player_id',ignoreDuplicates:true});if(error)console.warn('sonuç',error.message)}
+  catch(e){console.warn('sonuç',e)}
+}
+
+/* ═════ LİDERLİK TABLOSU ═════ */
+const BOARD_TABS=[['rozet','Rozetler'],['gorev','Görevler'],['katki','Katkı'],['karar','Kararlar']];
+let boardTab='rozet',boardFrom='s-name',boardRows=null;
+window.openBoard=async function(){
+  const cur=document.querySelector('.screen.active')?.id;if(cur&&cur!=='s-board')boardFrom=cur;
+  goTo('s-board');renderBoardTabs();$('board-list').innerHTML='<div class="feed-empty">Yükleniyor…</div>';
+  if(!SB_REAL){$('board-list').innerHTML='<div class="feed-empty">Liderlik tablosu için internet bağlantısı gerekli.</div>';return}
+  try{
+    const{data,error}=await SB_REAL.from('game_results').select('*').order('created_at',{ascending:false}).limit(2000);
+    if(error)throw new Error(error.message);boardRows=data||[];renderBoard();
+  }catch(e){$('board-list').innerHTML=`<div class="feed-empty">Tablo yüklenemedi: ${esc(e.message)}</div>`}
+};
+window.boardBack=()=>goTo(boardFrom==='s-end'?'s-end':boardFrom||'s-name');
+function renderBoardTabs(){
+  $('board-tabs').innerHTML=BOARD_TABS.map(([k,l])=>`<button type="button" role="tab" aria-selected="${k===boardTab}" class="${k===boardTab?'active':''}" onclick="setBoardTab('${k}')">${l}</button>`).join('');
+}
+window.setBoardTab=k=>{boardTab=k;sfx('click');renderBoardTabs();renderBoard()};
+function renderBoard(){
+  if(!boardRows)return;
+  const rows=boardRows,meKey=(S.playerName||$('input-name').value||'').trim().toLocaleLowerCase('tr-TR');
+  const key=r=>r.name.trim().toLocaleLowerCase('tr-TR'),city=k=>CITIES[k]?.name||'';
+  if(!rows.length){$('board-list').innerHTML='<div class="feed-empty">Henüz bitmiş oyun yok. İlk dönemi bitiren tabloya adını yazdırır.</div>';return}
+  const byName={};rows.forEach(r=>{const k=key(r),x=byName[k]=byName[k]||{name:r.name,games:0,wins:0,badges:{},impact:0};
+    x.games++;if(r.won)x.wins++;x.impact+=+r.impact||0;(r.badges||[]).forEach(b=>x.badges[b]=(x.badges[b]||0)+1)});
+  const people=Object.entries(byName).map(([k,x])=>({k,...x,nb:Object.values(x.badges).reduce((a,b)=>a+b,0)}));
+  const line=(i,k,main,sub,val)=>`<div class="lb-row${k===meKey?' me':''}"><div class="rk">${i+1}</div><div><b>${main}</b><small>${sub}</small></div><div class="val">${val}</div></div>`;
+  let html='';
+  if(boardTab==='rozet'){
+    html=people.filter(x=>x.nb).sort((a,b)=>b.nb-a.nb||b.wins-a.wins).slice(0,15).map((x,i)=>line(i,x.k,esc(x.name),
+      Object.entries(x.badges).sort((a,b)=>b[1]-a[1]).map(([b,n])=>`${BADGES[b]?.icon||''}×${n}`).join('  '),`${x.nb}<small> rozet</small>`)).join('');
+  }else if(boardTab==='gorev'){
+    html=people.filter(x=>x.wins).sort((a,b)=>b.wins-a.wins||b.wins/b.games-a.wins/a.games).slice(0,15).map((x,i)=>line(i,x.k,esc(x.name),
+      `${x.games} dönemde %${Math.round(100*x.wins/x.games)} başarı`,`${x.wins}<small> görev</small>`)).join('');
+  }else if(boardTab==='katki'){
+    html=[...rows].filter(r=>+r.impact>0).sort((a,b)=>b.impact-a.impact).slice(0,15).map((r,i)=>line(i,key(r),esc(r.name),
+      `${esc(ROLES.find(x=>x.key===r.role)?.name||'')}, ${esc(city(r.city))}, ${r.rounds||'?'} tur`,`+${(+r.impact).toFixed(1)}`)).join('');
+  }else{
+    html=[...rows].filter(r=>r.best_label&&+r.best_impact>0).sort((a,b)=>b.best_impact-a.best_impact).slice(0,15).map((r,i)=>line(i,key(r),esc(r.best_label),
+      `${esc(r.name)}, ${esc(city(r.city))}`,`+${(+r.best_impact).toFixed(1)}`)).join('');
+  }
+  $('board-list').innerHTML=html||'<div class="feed-empty">Bu kategoride henüz kayıt yok.</div>';
+}
+
 $('btn-end-again').onclick=()=>{
   /*DEV-START*/if(S.dev){Object.assign(S,{playerId:null,roomId:null,roomCode:'',myRole:null,gameState:null,players:[],played:[],ended:false,endShown:false,_seen:null,_pids:null});devExit();return}/*DEV-END*/
   if(DEMO){sb=createMockClient(DEMO_SEED);BOTS=[]}
