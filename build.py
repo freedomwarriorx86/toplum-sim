@@ -4,6 +4,7 @@
 Kullanım:
   python3 build.py          -> index.html (geliştirme, DEV kodu dahil) + dist/demo.html
   python3 build.py --prod   -> ek olarak dist/prod/index.html: geliştirici modu tamamen çıkarılmış yayın sürümü
+  python3 build.py --app    -> ek olarak dist/app/: mobil uygulama (Capacitor) için yerel kaynaklı yayın sürümü
 
 Geliştirici kodu şu işaretlerin arasında durur ve --prod / demo derlemesinde silinir:
   JS/CSS:  /*DEV-START*/ ... /*DEV-END*/
@@ -56,3 +57,19 @@ if "--prod" in sys.argv:
     (root / "dist/prod").mkdir(parents=True, exist_ok=True)
     (root / "dist/prod/index.html").write_text(clean, encoding="utf-8")
     print("dist/prod/index.html hazır: geliştirici modu çıkarıldı, kalıntı kontrolü geçti.")
+
+if "--app" in sys.argv:
+    # Capacitor (Android/iOS) için: geliştirici modu yok, kütüphane ve yazı tipleri yerelden
+    import shutil
+    vend = root / "vendor"
+    assert (vend / "supabase.min.js").exists(), "Önce: python3 tools/fetch_vendor.py"
+    app = clean
+    app, n1 = re.subn(r'<script src="https://cdn\.jsdelivr\.net/npm/@supabase[^"]*"></script>', '<script src="vendor/supabase.min.js"></script>', app)
+    app, n2 = re.subn(r'<link href="https://fonts\.googleapis\.com/css2[^"]*" rel="stylesheet">', '<link href="vendor/fonts.css" rel="stylesheet">', app)
+    app = re.sub(r'<link rel="preconnect"[^>]*>\n?', "", app)
+    assert n1 == 1 and n2 == 1, "Uygulama derlemesi: CDN bağlantıları bulunamadı"
+    out = root / "dist/app"
+    shutil.rmtree(out, ignore_errors=True); out.mkdir(parents=True)
+    (out / "index.html").write_text(app, encoding="utf-8")
+    shutil.copytree(vend, out / "vendor")
+    print("dist/app hazır (Capacitor webDir).")

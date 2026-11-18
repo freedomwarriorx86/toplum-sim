@@ -27,3 +27,16 @@ Vanilla JS, tek dosya (`index.html`) + Supabase (veritabanı ve gerçek zamanlı
 `tools/balance-sim.js` botlarla binlerce oyun oynatır ve görev başarı oranlarını basar. Görev eşikleri `index.html` içindeki `MISSION_RULE` tablosunda, ilçenin başlangıç değerine göre tanımlıdır; hedef her görev için yaklaşık %40–50 başarı.
 
 Not: RLS kuralları prototip aşamasında herkese açık. Linki yalnızca test ekibiyle paylaş.
+
+## Mobil uygulama (Capacitor)
+
+Android projesi `android/` klasöründe. Web içeriği `python3 build.py --app` ile `dist/app/` altına üretilir: geliştirici modu çıkarılır, supabase-js ve yazı tipleri `vendor/` klasöründen yerel yüklenir (`tools/fetch_vendor.py` bunları indirir).
+
+```sh
+npm install
+export JAVA_HOME=~/.local/opt/jdk-21 ANDROID_HOME=~/.local/opt/android-sdk   # JDK 21 + Android SDK 36
+npm run apk        # -> android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+İkon ve açılış ekranı kaynakları `assets/` altında; değiştirdikten sonra `npx capacitor-assets generate --android`.
+Gradle 8.14 JDK 25 ile çalışmaz, JDK 21 kullan.

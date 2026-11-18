@@ -1,0 +1,10 @@
+{
+  "appId": "io.github.freedomwarriorx86.toplumsim",
+  "appName": "Toplum Simülasyonu",
+  "webDir": "dist/app",
+  "android": { "backgroundColor": "#E8ECE6" },
+  "plugins": {
+    "SplashScreen": { "launchShowDuration": 600, "backgroundColor": "#E8ECE6", "showSpinner": false },
+    "StatusBar": { "style": "LIGHT", "backgroundColor": "#E8ECE6", "overlaysWebView": false }
+  }
+}

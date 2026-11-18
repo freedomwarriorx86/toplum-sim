@@ -1,0 +1,21 @@
+{
+  "name": "toplum-sim",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Toplum Simülasyonu: gerçek zamanlı sosyoekonomik strateji oyunu",
+  "scripts": {
+    "build:app": "python3 build.py --app",
+    "sync": "python3 build.py --app && npx cap sync android",
+    "apk": "python3 build.py --app && npx cap sync android && cd android && ./gradlew assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/core": "^8.6.2",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.4"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.6.2"
+  }
+}
